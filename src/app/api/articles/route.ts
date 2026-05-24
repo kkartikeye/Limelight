@@ -20,27 +20,26 @@ export async function GET(req: NextRequest) {
   const hours = hoursMap[window] ?? 24;
   const since = new Date(Date.now() - hours * 3_600_000).toISOString();
 
-  // Join article_locations → articles → sources
+  // Start from articles so the published_at filter works as a plain column filter.
+  // article_locations!inner ensures we only get articles tagged to this country.
   const { data, error } = await supabase
-    .from("article_locations")
+    .from("articles")
     .select(`
-      is_primary,
-      articles (
-        id, title, url, published_at, category, severity,
-        sources ( name, domain, credibility )
-      )
+      id, title, url, published_at, category, severity,
+      sources ( name, domain, credibility ),
+      article_locations!inner ( country_code, is_primary )
     `)
-    .eq("country_code", country)
-    .eq("is_primary", true)
-    .gte("articles.published_at", since)
-    .order("articles(published_at)", { ascending: false })
+    .eq("article_locations.country_code", country)
+    .eq("article_locations.is_primary", true)
+    .gte("published_at", since)
+    .order("published_at", { ascending: false })
     .limit(limit);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  type ArtRow = {
+  type Row = {
     id: string;
     title: string;
     url: string;
@@ -50,25 +49,22 @@ export async function GET(req: NextRequest) {
     sources: { name: string; domain: string; credibility: number } | null;
   };
 
-  const articles = (data ?? [])
-    .map((row) => row.articles)
-    .filter(Boolean)
-    .map((a) => {
-      const art = (a as unknown) as ArtRow;
-      return {
-        id: art.id,
-        headline: art.title,
-        url: art.url,
-        publishedAt: art.published_at,
-        category: art.category,
-        severity: art.severity,
-        source: art.sources?.name ?? "Unknown",
-        domain: art.sources?.domain ?? "",
-        credibilityTier:
-          (art.sources?.credibility ?? 0) >= 0.85 ? "high" :
-          (art.sources?.credibility ?? 0) >= 0.6  ? "medium" : "low",
-      };
-    });
+  const articles = (data ?? []).map((row) => {
+    const r = row as unknown as Row;
+    return {
+      id: r.id,
+      headline: r.title,
+      url: r.url,
+      publishedAt: r.published_at,
+      category: r.category,
+      severity: r.severity,
+      source: r.sources?.name ?? r.sources?.domain ?? "Unknown",
+      domain: r.sources?.domain ?? "",
+      credibilityTier:
+        (r.sources?.credibility ?? 0) >= 0.85 ? "high" :
+        (r.sources?.credibility ?? 0) >= 0.6  ? "medium" : "low",
+    };
+  });
 
   return NextResponse.json({ articles }, {
     headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120" },
