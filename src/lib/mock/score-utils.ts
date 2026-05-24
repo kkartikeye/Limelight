@@ -1,15 +1,19 @@
 import type { Feature, FeatureCollection, Geometry } from "geojson";
 import { mockScores } from "./mock-scores";
+import type { CountryScore } from "@/lib/types/scores";
 
-const scoreMap = new Map(mockScores.map((s) => [s.code, s]));
+const defaultScoreMap = new Map(mockScores.map((s) => [s.code, s]));
 
 export function getCountryScore(code: string): number {
-  return scoreMap.get(code)?.score ?? 0;
+  return defaultScoreMap.get(code)?.score ?? 0;
 }
 
 export function mergeGeoJsonWithScores(
-  geoJson: FeatureCollection<Geometry>
+  geoJson: FeatureCollection<Geometry>,
+  scores: CountryScore[] = mockScores
 ): FeatureCollection<Geometry> {
+  const scoreMap = new Map(scores.map((s) => [s.code, s]));
+
   return {
     ...geoJson,
     features: geoJson.features.map((feature: Feature<Geometry>) => {

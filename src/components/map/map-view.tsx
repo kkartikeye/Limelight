@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import HeatLayer from "./heat-layer";
 import Tooltip from "./tooltip";
 import StoryPanel from "@/components/panel/story-panel";
+import { useMapStore } from "@/lib/stores/map-store";
 
 const INITIAL_VIEW_STATE = {
   longitude: 0,
@@ -22,25 +23,20 @@ interface HoverInfo {
   y: number;
 }
 
-interface SelectedCountry {
-  code: string;
-  name: string;
-  score: number;
-}
-
 export default function MapView() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
-  const [selected, setSelected] = useState<SelectedCountry | null>(null);
 
-  const closePanel = useCallback(() => {
-    setSelected(null);
-    // Shift map back to centre when panel closes
+  const { isPanelOpen, selectedCountry, selectedCountryName, selectedCountryScore,
+          selectCountry, clearSelection } = useMapStore();
+
+  const closePanel = () => {
+    clearSelection();
     mapRef.current?.easeTo({ padding: { right: 0 }, duration: 250 });
-  }, []);
+  };
 
   useEffect(() => {
     if (typeof window === "undefined" || !containerRef.current) return;
@@ -61,13 +57,10 @@ export default function MapView() {
       setMapLoaded(true);
       setContainerWidth(containerRef.current?.offsetWidth ?? 0);
 
-      // Hover
       map.on("mousemove", "heat-fill", (e) => {
         if (!e.features?.length) return;
         const props = e.features[0].properties as {
-          ADMIN?: string;
-          score?: number;
-          articleCount?: number;
+          ADMIN?: string; score?: number; articleCount?: number;
         } | null;
         map.getCanvas().style.cursor = "pointer";
         setHoverInfo({
@@ -84,34 +77,21 @@ export default function MapView() {
         setHoverInfo(null);
       });
 
-      // Click → open panel
       map.on("click", "heat-fill", (e) => {
         if (!e.features?.length) return;
         const props = e.features[0].properties as {
-          ISO_A3?: string;
-          ADMIN?: string;
-          score?: number;
+          ISO_A3?: string; ADMIN?: string; score?: number;
         } | null;
-
-        const code = props?.ISO_A3 ?? "";
-        const name = props?.ADMIN ?? "Unknown";
-        const score = props?.score ?? 0;
-
-        setSelected({ code, name, score });
+        selectCountry(props?.ISO_A3 ?? "", props?.ADMIN ?? "Unknown", props?.score ?? 0);
         setHoverInfo(null);
-
-        // Shift map left so selected country stays visible behind panel
         map.easeTo({ padding: { right: PANEL_WIDTH }, duration: 250 });
         map.scrollZoom.enable();
       });
 
-      // Click on empty map area → close panel
       map.on("click", (e) => {
-        const features = map.queryRenderedFeatures(e.point, {
-          layers: ["heat-fill"],
-        });
+        const features = map.queryRenderedFeatures(e.point, { layers: ["heat-fill"] });
         if (!features.length) {
-          setSelected(null);
+          clearSelection();
           map.easeTo({ padding: { right: 0 }, duration: 250 });
         }
       });
@@ -137,13 +117,14 @@ export default function MapView() {
       document.removeEventListener("click", handleDocumentClick);
       map.remove();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
     <div className="relative h-full w-full">
       <div ref={containerRef} className="h-full w-full" />
       {mapLoaded && mapRef.current && <HeatLayer map={mapRef.current} />}
-      {hoverInfo && !selected && (
+      {hoverInfo && !isPanelOpen && (
         <Tooltip
           name={hoverInfo.name}
           score={hoverInfo.score}
@@ -153,11 +134,11 @@ export default function MapView() {
           containerWidth={containerWidth}
         />
       )}
-      {selected && (
+      {isPanelOpen && selectedCountry && (
         <StoryPanel
-          countryCode={selected.code}
-          countryName={selected.name}
-          score={selected.score}
+          countryCode={selectedCountry}
+          countryName={selectedCountryName}
+          score={selectedCountryScore}
           onClose={closePanel}
         />
       )}
