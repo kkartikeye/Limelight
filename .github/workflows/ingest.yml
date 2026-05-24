@@ -1,0 +1,30 @@
+name: Hourly News Ingest
+
+on:
+  schedule:
+    # Run at :05 past every hour — staggered from the midnight Vercel cron
+    - cron: '5 * * * *'
+  workflow_dispatch: # allow manual trigger from GitHub UI
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+
+    steps:
+      - name: Trigger ingest
+        run: |
+          HTTP_STATUS=$(curl -sS -o /tmp/ingest_response.json -w "%{http_code}" \
+            -X POST \
+            -H "x-ingest-secret: ${{ secrets.INGEST_SECRET }}" \
+            -H "Content-Type: application/json" \
+            --max-time 25 \
+            "${{ secrets.PRODUCTION_URL }}/api/ingest")
+
+          echo "HTTP status: $HTTP_STATUS"
+          cat /tmp/ingest_response.json
+
+          if [ "$HTTP_STATUS" -lt 200 ] || [ "$HTTP_STATUS" -ge 300 ]; then
+            echo "Ingest returned non-2xx status: $HTTP_STATUS"
+            exit 1
+          fi

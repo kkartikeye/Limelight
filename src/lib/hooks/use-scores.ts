@@ -2,21 +2,16 @@ import { useEffect, useState, useMemo } from "react";
 import type { FeatureCollection, Geometry } from "geojson";
 import { mergeGeoJsonWithScores } from "@/lib/mock/score-utils";
 import { mockScores } from "@/lib/mock/mock-scores";
-import { useMapStore } from "@/lib/stores/map-store";
-import type { TimeWindow, Category } from "@/lib/stores/map-store";
+import { useMapStore, ALL_CATEGORIES } from "@/lib/stores/map-store";
 import type { CountryScore, TopCategory } from "@/lib/types/scores";
 
 // Fallback variance for mock data when the API returns no scores
-function applyFilterVariance(
-  score: number,
-  timeWindow: TimeWindow,
-  categories: Category[]
-): number {
-  const twFactor: Record<TimeWindow, number> = {
+function applyFilterVariance(score: number, timeWindow: string, catCount: number): number {
+  const twFactor: Record<string, number> = {
     "1h": 0.4, "6h": 0.65, "24h": 1.0, "7d": 1.2, "30d": 1.35,
   };
-  const catCoverage = categories.length / 8;
-  const raw = score * twFactor[timeWindow] * (0.5 + catCoverage * 0.5);
+  const catCoverage = catCount / ALL_CATEGORIES.length;
+  const raw = score * (twFactor[timeWindow] ?? 1) * (0.5 + catCoverage * 0.5);
   return Math.min(100, Math.max(0, Math.round(raw)));
 }
 
@@ -34,39 +29,56 @@ export function useScores(): FeatureCollection<Geometry> | null {
       .then((data: FeatureCollection<Geometry>) => setRawGeoJson(data));
   }, []);
 
-  // Poll /api/heatmap every 5 minutes; fall back to mock if empty
+  // Poll /api/heatmap every 5 minutes, re-fetch immediately when filters change.
+  // Passes time window and active categories so the API aggregates accordingly.
   useEffect(() => {
     let active = true;
 
+    // Build category param only when not all categories are selected
+    const catParam =
+      filters.categories.length < ALL_CATEGORIES.length && filters.categories.length > 0
+        ? `&categories=${filters.categories.join(",")}`
+        : "";
+
     async function fetchScores() {
       try {
-        const res = await fetch(`/api/heatmap?_=${Date.now()}`);
+        const res = await fetch(
+          `/api/heatmap?window=${filters.timeWindow}${catParam}&_=${Date.now()}`
+        );
         if (!res.ok) return;
-        const data = await res.json() as ApiScores;
-        if (active && Object.keys(data).length > 0) {
+        const data = (await res.json()) as ApiScores;
+        if (!active) return;
+        if (Object.keys(data).length > 0) {
           setApiScores(data);
+        } else {
+          // Empty response → fall through to mock in useMemo
+          setApiScores(null);
         }
       } catch {
-        // network error — keep existing scores
+        // Network error — keep existing scores
       }
     }
 
     fetchScores();
     const interval = setInterval(fetchScores, 5 * 60_000);
-    return () => { active = false; clearInterval(interval); };
-  }, []);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [filters.timeWindow, filters.categories]); // re-fetch when filters change
 
   return useMemo(() => {
     if (!rawGeoJson) return null;
+
+    const validCategories = new Set<TopCategory>([
+      "Conflict", "Politics", "Economics", "Technology",
+      "Humanitarian", "Environment", "Sports", "Entertainment",
+    ]);
 
     let scores: CountryScore[];
 
     if (apiScores && Object.keys(apiScores).length > 0) {
       // Real data from DB
-      const validCategories = new Set<TopCategory>([
-        "Conflict","Politics","Economics","Technology",
-        "Humanitarian","Environment","Sports","Entertainment",
-      ]);
       scores = Object.entries(apiScores).map(([code, val]) => {
         const cat = val.topCategory as TopCategory;
         return {
@@ -74,14 +86,14 @@ export function useScores(): FeatureCollection<Geometry> | null {
           name: code,
           score: val.score,
           articleCount: val.articleCount,
-          topCategory: validCategories.has(cat) ? cat : "Politics" as TopCategory,
+          topCategory: validCategories.has(cat) ? cat : ("Politics" as TopCategory),
         };
       });
     } else {
-      // Mock fallback while DB has no scores yet
+      // Mock fallback while DB is being populated
       scores = mockScores.map((s) => ({
         ...s,
-        score: applyFilterVariance(s.score, filters.timeWindow, filters.categories),
+        score: applyFilterVariance(s.score, filters.timeWindow, filters.categories.length),
       }));
     }
 

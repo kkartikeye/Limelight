@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { createHash } from "crypto";
 
-export const maxDuration = 60;
+export const maxDuration = 60; // respected on Pro; Hobby is still capped at 10s
 
 const INGEST_SECRET = process.env.INGEST_SECRET ?? "dev-secret";
 const GDELT_BASE = "https://api.gdeltproject.org/api/v2/doc/doc";
@@ -209,7 +209,6 @@ function extractCountry(title: string, domain?: string): { iso3: string; confide
     if (pattern.test(title)) return { iso3, confidence: 0.85 };
   }
   if (domain) {
-    // Try exact domain match, then parent domain
     const parentDomain = domain.split(".").slice(-2).join(".");
     const iso3 = DOMAIN_COUNTRY[domain] ?? DOMAIN_COUNTRY[parentDomain];
     if (iso3) return { iso3, confidence: 0.4 };
@@ -221,10 +220,6 @@ function extractCountry(title: string, domain?: string): { iso3: string; confide
 function seendateToISO(s: string): string {
   const d = s.replace(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/, "$1-$2-$3T$4:$5:$6Z");
   return d || new Date().toISOString();
-}
-
-function urlHash(url: string): string {
-  return createHash("sha256").update(url).digest("hex").slice(0, 32);
 }
 
 function titleHash(title: string): string {
@@ -250,10 +245,13 @@ function detectCategory(title: string): string {
 }
 
 // ─── GDELT fetch ──────────────────────────────────────────────────────────────
-async function fetchGdelt(query: string, timespan = "2h", maxrecords = 100): Promise<GdeltArticle[]> {
-  const params = new URLSearchParams({ query, mode: "artlist", maxrecords: String(maxrecords), format: "json", timespan });
+// 6-second timeout keeps us inside Vercel Hobby's 10s wall.
+async function fetchGdelt(query: string, timespan = "2h", maxrecords = 50): Promise<GdeltArticle[]> {
+  const params = new URLSearchParams({
+    query, mode: "artlist", maxrecords: String(maxrecords), format: "json", timespan,
+  });
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 25_000);
+  const timer = setTimeout(() => controller.abort(), 6_000);
   try {
     const res = await fetch(`${GDELT_BASE}?${params}`, { signal: controller.signal });
     if (!res.ok) return [];
@@ -266,108 +264,139 @@ async function fetchGdelt(query: string, timespan = "2h", maxrecords = 100): Pro
   }
 }
 
-// ─── Article ingestion ────────────────────────────────────────────────────────
+// ─── Batch article ingestion ──────────────────────────────────────────────────
+// All DB work is done in bulk queries (O(6) queries regardless of article count)
+// instead of the previous per-article loop (O(4n) queries).
 async function ingestArticles(
   articles: GdeltArticle[],
-  results: { fetched: number; inserted: number; skipped: number; errors: string[] }
+  results: { inserted: number; skipped: number; errors: string[] }
 ) {
-  for (const art of articles) {
-    const hash = urlHash(art.url);
-    const thash = titleHash(art.title);
+  if (!articles.length) return;
 
-    const { data: existing } = await supabase
-      .from("articles").select("id")
-      .or(`external_id.eq.${hash},external_id.eq.${thash}`)
-      .maybeSingle();
-    if (existing) { results.skipped++; continue; }
+  // 1. Bulk-check which titles already exist
+  const thashes = articles.map((a) => titleHash(a.title));
+  const { data: existingRows } = await supabase
+    .from("articles")
+    .select("external_id")
+    .in("external_id", thashes);
+  const existingSet = new Set((existingRows ?? []).map((r) => r.external_id as string));
 
-    let sourceId: string | null = null;
-    const { data: src } = await supabase
-      .from("sources").select("id").eq("domain", art.domain).maybeSingle();
-    if (src) {
-      sourceId = src.id;
-    } else {
-      const { data: newSrc } = await supabase
-        .from("sources")
-        .insert({ name: art.domain, domain: art.domain, credibility: 0.5, source_type: "news" })
-        .select("id").single();
-      if (newSrc) sourceId = newSrc.id;
-    }
+  const newArticles = articles.filter((a) => !existingSet.has(titleHash(a.title)));
+  results.skipped += articles.length - newArticles.length;
+  if (!newArticles.length) return;
 
-    const category = detectCategory(art.title);
-    const { data: inserted, error: insErr } = await supabase
-      .from("articles")
-      .insert({
-        external_id: thash,
-        title: art.title,
-        url: art.url,
-        published_at: seendateToISO(art.seendate),
-        source_id: sourceId,
-        category,
-        severity: category === "Conflict" ? 4 : category === "Humanitarian" ? 3 : 2,
-      })
-      .select("id").single();
+  // 2. Bulk-fetch existing sources, insert missing ones
+  const domains = Array.from(new Set(newArticles.map((a) => a.domain).filter(Boolean)));
+  const { data: existingSources } = await supabase
+    .from("sources")
+    .select("id, domain")
+    .in("domain", domains);
+  const sourceMap = new Map<string, string>(
+    (existingSources ?? []).map((s) => [s.domain as string, s.id as string])
+  );
 
-    if (insErr || !inserted) { results.errors.push(`Insert: ${insErr?.message}`); continue; }
+  const newDomains = domains.filter((d) => !sourceMap.has(d));
+  if (newDomains.length) {
+    const { data: insertedSources } = await supabase
+      .from("sources")
+      .insert(newDomains.map((d) => ({ name: d, domain: d, credibility: 0.5, source_type: "news" })))
+      .select("id, domain");
+    (insertedSources ?? []).forEach((s) => sourceMap.set(s.domain as string, s.id as string));
+  }
 
-    const geo = extractCountry(art.title, art.domain);
+  // 3. Bulk upsert articles (onConflict = external_id unique constraint)
+  const articleRows = newArticles.map((a) => {
+    const category = detectCategory(a.title);
+    return {
+      external_id: titleHash(a.title),
+      title: a.title,
+      url: a.url,
+      published_at: seendateToISO(a.seendate),
+      source_id: sourceMap.get(a.domain) ?? null,
+      category,
+      severity: category === "Conflict" ? 4 : category === "Humanitarian" ? 3 : 2,
+    };
+  });
+
+  const { data: insertedArticles, error: artErr } = await supabase
+    .from("articles")
+    .upsert(articleRows, { onConflict: "external_id", ignoreDuplicates: true })
+    .select("id, external_id");
+
+  if (artErr) { results.errors.push(`Batch insert: ${artErr.message}`); return; }
+
+  // 4. Bulk insert locations (articles are new, so no location conflicts)
+  const locationRows: { article_id: string; country_code: string; is_primary: boolean; confidence: number }[] = [];
+  const thashToArticle = new Map(newArticles.map((a) => [titleHash(a.title), a]));
+
+  for (const inserted of insertedArticles ?? []) {
+    const orig = thashToArticle.get(inserted.external_id as string);
+    if (!orig) continue;
+    const geo = extractCountry(orig.title, orig.domain);
     if (geo) {
-      await supabase.from("article_locations").insert({
-        article_id: inserted.id,
+      locationRows.push({
+        article_id: inserted.id as string,
         country_code: geo.iso3,
         is_primary: true,
         confidence: geo.confidence,
       });
     }
-    results.inserted++;
   }
+
+  if (locationRows.length) {
+    const { error: locErr } = await supabase.from("article_locations").insert(locationRows);
+    if (locErr) results.errors.push(`Location insert: ${locErr.message}`);
+  }
+
+  results.inserted += (insertedArticles ?? []).length;
 }
 
 // ─── Scoring ──────────────────────────────────────────────────────────────────
+// Queries only articles from the last 24 h (filter on the primary table — reliable).
 async function computeScores(results: { scored: number; errors: string[] }) {
   const timeBucket = new Date();
   timeBucket.setMinutes(0, 0, 0);
   const since24h = new Date(Date.now() - 24 * 3_600_000).toISOString();
 
-  // Use !inner so only locations that have a matching article are returned.
-  // Time filter is applied in JS (PostgREST nested filters are unreliable).
-  const { data: locations, error } = await supabase
-    .from("article_locations")
+  // Start from articles (published_at filter is on the primary table — always reliable).
+  // article_locations!inner ensures only articles that have a tagged location.
+  const { data: articles, error } = await supabase
+    .from("articles")
     .select(`
-      country_code,
-      confidence,
-      articles!inner (
-        published_at, category, severity,
-        sources ( credibility )
-      )
+      published_at, category, severity,
+      sources ( credibility ),
+      article_locations!inner ( country_code, is_primary, confidence )
     `)
-    .eq("is_primary", true);
+    .gte("published_at", since24h);
 
   if (error) { results.errors.push(`Scoring fetch: ${error.message}`); return; }
 
   const raw: Record<string, { sum: number; count: number; cats: Record<string, number> }> = {};
 
-  for (const loc of locations ?? []) {
-    const art = (loc.articles as unknown) as {
-      published_at: string;
-      category: string | null;
-      severity: number | null;
-      sources: { credibility: number } | null;
-    } | null;
-    if (!art || art.published_at < since24h) continue;
+  for (const art of articles ?? []) {
+    // article_locations is an array (one-to-many from articles)
+    const locations = art.article_locations as unknown as Array<{
+      country_code: string;
+      is_primary: boolean;
+      confidence: number;
+    }>;
+    const src = art.sources as unknown as { credibility: number } | null;
 
     const hoursOld = (Date.now() - new Date(art.published_at).getTime()) / 3_600_000;
     const recencyDecay = Math.exp(-0.1 * hoursOld);
-    const credibility = art.sources?.credibility ?? 0.5;
+    const credibility = src?.credibility ?? 0.5;
     const severityWeight = SEVERITY_WEIGHT[art.category ?? ""] ?? 1.0;
-    const weight = credibility * recencyDecay * severityWeight * (loc.confidence ?? 1.0);
 
-    const cc = loc.country_code as string;
-    if (!raw[cc]) raw[cc] = { sum: 0, count: 0, cats: {} };
-    raw[cc].sum += weight;
-    raw[cc].count++;
-    const cat = art.category ?? "Other";
-    raw[cc].cats[cat] = (raw[cc].cats[cat] ?? 0) + 1;
+    for (const loc of locations) {
+      if (!loc.is_primary) continue;
+      const weight = credibility * recencyDecay * severityWeight * (loc.confidence ?? 1.0);
+      const cc = loc.country_code;
+      if (!raw[cc]) raw[cc] = { sum: 0, count: 0, cats: {} };
+      raw[cc].sum += weight;
+      raw[cc].count++;
+      const cat = art.category ?? "Other";
+      raw[cc].cats[cat] = (raw[cc].cats[cat] ?? 0) + 1;
+    }
   }
 
   const maxSum = Math.max(...Object.values(raw).map((r) => r.sum), 1);
@@ -389,27 +418,24 @@ async function computeScores(results: { scored: number; errors: string[] }) {
   }
 }
 
-// ─── Core ingestion run (shared by GET cron + POST manual) ────────────────────
+// ─── Core ingestion run ───────────────────────────────────────────────────────
+// Single GDELT fetch (50 records, 6 s timeout) + batch DB ops + scoring.
+// Target: ≤ 9 s end-to-end so it fits Vercel Hobby's 10-second wall.
 async function runIngestion(): Promise<NextResponse> {
   const results = { fetched: 0, inserted: 0, skipped: 0, scored: 0, errors: [] as string[] };
 
-  const broad = await fetchGdelt("sourcelang:english", "2h", 100);
-  results.fetched += broad.length;
-  await ingestArticles(broad, results);
+  const articles = await fetchGdelt("sourcelang:english", "2h", 50);
+  results.fetched = articles.length;
 
-  await new Promise((r) => setTimeout(r, 6_000));
-
-  const conflict = await fetchGdelt("theme:MILITARY OR theme:TERROR", "2h", 75);
-  results.fetched += conflict.length;
-  await ingestArticles(conflict, results);
+  if (articles.length > 0) {
+    await ingestArticles(articles, results);
+  }
 
   await computeScores(results);
   return NextResponse.json(results);
 }
 
 // ─── One-time backfill (POST /api/ingest?backfill=true) ───────────────────────
-// Re-tags all articles in the DB using the current (expanded) geo rules.
-// Run once after deploying the improved COUNTRY_NAME_MAP, then never again.
 async function runBackfill(): Promise<NextResponse> {
   const { data: allArticles } = await supabase
     .from("articles").select("id, title, sources(domain)").limit(1000);
@@ -420,7 +446,6 @@ async function runBackfill(): Promise<NextResponse> {
     const geo = extractCountry(row.title as string, domain ?? undefined);
     if (!geo) { skipped++; continue; }
 
-    // Upsert so re-running is idempotent
     const { data: existing } = await supabase
       .from("article_locations").select("id")
       .eq("article_id", row.id).eq("is_primary", true).maybeSingle();
@@ -438,10 +463,8 @@ async function runBackfill(): Promise<NextResponse> {
     tagged++;
   }
 
-  // Re-score after backfill
   const scoreResults = { scored: 0, errors: [] as string[] };
   await computeScores(scoreResults);
-
   return NextResponse.json({ tagged, skipped, ...scoreResults });
 }
 
@@ -454,7 +477,7 @@ export async function GET(req: NextRequest) {
   return runIngestion();
 }
 
-// ─── Manual POST ──────────────────────────────────────────────────────────────
+// ─── Manual / GitHub Actions POST ────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   if (req.headers.get("x-ingest-secret") !== INGEST_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

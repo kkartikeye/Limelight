@@ -3,12 +3,14 @@ import { supabase } from "@/lib/supabase";
 
 export const revalidate = 0;
 
-// GET /api/articles?country=USA&limit=10&window=24h
+// GET /api/articles?country=USA&limit=10&window=24h&categories=Conflict,Politics
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
   const country = searchParams.get("country");
   const limit = Math.min(parseInt(searchParams.get("limit") ?? "10", 10), 50);
   const window = searchParams.get("window") ?? "24h";
+  const categoriesParam = searchParams.get("categories");
+  const filterCategories = categoriesParam ? categoriesParam.split(",").filter(Boolean) : [];
 
   if (!country) {
     return NextResponse.json({ error: "country param required" }, { status: 400 });
@@ -22,7 +24,7 @@ export async function GET(req: NextRequest) {
 
   // Start from articles so the published_at filter works as a plain column filter.
   // article_locations!inner ensures we only get articles tagged to this country.
-  const { data, error } = await supabase
+  let query = supabase
     .from("articles")
     .select(`
       id, title, url, published_at, category, severity,
@@ -34,6 +36,12 @@ export async function GET(req: NextRequest) {
     .gte("published_at", since)
     .order("published_at", { ascending: false })
     .limit(limit);
+
+  if (filterCategories.length > 0) {
+    query = query.in("category", filterCategories);
+  }
+
+  const { data, error } = await query;
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });

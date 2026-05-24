@@ -26,7 +26,11 @@ export default function StoryPanel({
   onClose,
 }: StoryPanelProps) {
   const { filters } = useMapStore();
-  const { articles, loading } = useArticles(countryCode, filters.timeWindow);
+  const { articles, loading, isLive } = useArticles(
+    countryCode,
+    filters.timeWindow,
+    filters.categories
+  );
 
   // Close on Escape key
   useEffect(() => {
@@ -56,7 +60,7 @@ export default function StoryPanel({
           >
             {countryName}
           </h2>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-mono text-gray-400">
               {countryCode}
             </span>
@@ -65,6 +69,12 @@ export default function StoryPanel({
             >
               {score} intensity
             </span>
+            {isLive && (
+              <span className="flex items-center gap-1 rounded border border-emerald-700/50 bg-emerald-900/60 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+                LIVE
+              </span>
+            )}
           </div>
         </div>
         <button
