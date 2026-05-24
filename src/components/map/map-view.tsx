@@ -1,15 +1,18 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import mapboxgl from "mapbox-gl";
 import HeatLayer from "./heat-layer";
 import Tooltip from "./tooltip";
+import StoryPanel from "@/components/panel/story-panel";
 
 const INITIAL_VIEW_STATE = {
   longitude: 0,
   latitude: 20,
   zoom: 1.8,
 };
+
+const PANEL_WIDTH = 380;
 
 interface HoverInfo {
   name: string;
@@ -19,12 +22,25 @@ interface HoverInfo {
   y: number;
 }
 
+interface SelectedCountry {
+  code: string;
+  name: string;
+  score: number;
+}
+
 export default function MapView() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
+  const [selected, setSelected] = useState<SelectedCountry | null>(null);
+
+  const closePanel = useCallback(() => {
+    setSelected(null);
+    // Shift map back to centre when panel closes
+    mapRef.current?.easeTo({ padding: { right: 0 }, duration: 250 });
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined" || !containerRef.current) return;
@@ -45,16 +61,14 @@ export default function MapView() {
       setMapLoaded(true);
       setContainerWidth(containerRef.current?.offsetWidth ?? 0);
 
-      // Hover: show tooltip when cursor is over a heat-fill feature
+      // Hover
       map.on("mousemove", "heat-fill", (e) => {
         if (!e.features?.length) return;
-        const feat = e.features[0];
-        const props = feat.properties as {
+        const props = e.features[0].properties as {
           ADMIN?: string;
           score?: number;
           articleCount?: number;
         } | null;
-
         map.getCanvas().style.cursor = "pointer";
         setHoverInfo({
           name: props?.ADMIN ?? "Unknown",
@@ -68,6 +82,38 @@ export default function MapView() {
       map.on("mouseleave", "heat-fill", () => {
         map.getCanvas().style.cursor = "";
         setHoverInfo(null);
+      });
+
+      // Click → open panel
+      map.on("click", "heat-fill", (e) => {
+        if (!e.features?.length) return;
+        const props = e.features[0].properties as {
+          ISO_A3?: string;
+          ADMIN?: string;
+          score?: number;
+        } | null;
+
+        const code = props?.ISO_A3 ?? "";
+        const name = props?.ADMIN ?? "Unknown";
+        const score = props?.score ?? 0;
+
+        setSelected({ code, name, score });
+        setHoverInfo(null);
+
+        // Shift map left so selected country stays visible behind panel
+        map.easeTo({ padding: { right: PANEL_WIDTH }, duration: 250 });
+        map.scrollZoom.enable();
+      });
+
+      // Click on empty map area → close panel
+      map.on("click", (e) => {
+        const features = map.queryRenderedFeatures(e.point, {
+          layers: ["heat-fill"],
+        });
+        if (!features.length) {
+          setSelected(null);
+          map.easeTo({ padding: { right: 0 }, duration: 250 });
+        }
       });
     });
 
@@ -97,7 +143,7 @@ export default function MapView() {
     <div className="relative h-full w-full">
       <div ref={containerRef} className="h-full w-full" />
       {mapLoaded && mapRef.current && <HeatLayer map={mapRef.current} />}
-      {hoverInfo && (
+      {hoverInfo && !selected && (
         <Tooltip
           name={hoverInfo.name}
           score={hoverInfo.score}
@@ -105,6 +151,14 @@ export default function MapView() {
           x={hoverInfo.x}
           y={hoverInfo.y}
           containerWidth={containerWidth}
+        />
+      )}
+      {selected && (
+        <StoryPanel
+          countryCode={selected.code}
+          countryName={selected.name}
+          score={selected.score}
+          onClose={closePanel}
         />
       )}
     </div>
