@@ -38,3 +38,8 @@ body {
   from { transform: translateX(100%); }
   to   { transform: translateX(0); }
 }
+
+@keyframes loader-fade-out {
+  from { opacity: 1; pointer-events: auto; }
+  to   { opacity: 0; pointer-events: none; }
+}

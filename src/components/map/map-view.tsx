@@ -8,6 +8,7 @@ import StoryPanel from "@/components/panel/story-panel";
 import { useMapStore } from "@/lib/stores/map-store";
 import FilterBar from "@/components/filters/filter-bar";
 import GlobeToggle from "@/components/ui/globe-toggle";
+import MapLoader from "@/components/ui/map-loader";
 
 const INITIAL_VIEW_STATE = {
   longitude: 0,
@@ -72,6 +73,15 @@ export default function MapView() {
     map.on("load", () => {
       setMapLoaded(true);
       setContainerWidth(containerRef.current?.offsetWidth ?? 0);
+
+      // Boost label legibility over heat colors
+      ["country-label", "state-label", "settlement-label", "settlement-subdivision-label"]
+        .filter((id) => map.getLayer(id))
+        .forEach((id) => {
+          map.setPaintProperty(id, "text-halo-color", "#111");
+          map.setPaintProperty(id, "text-halo-width", 1.5);
+          map.setPaintProperty(id, "text-color", "#ffffff");
+        });
 
       map.on("mousemove", "heat-fill", (e) => {
         if (!e.features?.length) return;
@@ -138,6 +148,7 @@ export default function MapView() {
 
   return (
     <div className="relative h-full w-full">
+      {!mapLoaded && <MapLoader />}
       <div ref={containerRef} className="h-full w-full" />
       {mapLoaded && mapRef.current && <HeatLayer map={mapRef.current} />}
       {hoverInfo && !isPanelOpen && (
