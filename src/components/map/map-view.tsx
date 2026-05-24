@@ -7,6 +7,7 @@ import Tooltip from "./tooltip";
 import StoryPanel from "@/components/panel/story-panel";
 import { useMapStore } from "@/lib/stores/map-store";
 import FilterBar from "@/components/filters/filter-bar";
+import GlobeToggle from "@/components/ui/globe-toggle";
 
 const INITIAL_VIEW_STATE = {
   longitude: 0,
@@ -32,11 +33,25 @@ export default function MapView() {
   const [containerWidth, setContainerWidth] = useState(0);
 
   const { isPanelOpen, selectedCountry, selectedCountryName, selectedCountryScore,
-          selectCountry, clearSelection } = useMapStore();
+          selectCountry, clearSelection, isGlobe, toggleGlobe } = useMapStore();
 
   const closePanel = () => {
     clearSelection();
     mapRef.current?.easeTo({ padding: { right: 0 }, duration: 250 });
+  };
+
+  const handleGlobeToggle = () => {
+    const map = mapRef.current;
+    if (!map) return;
+    const next = !isGlobe;
+    toggleGlobe();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    map.setProjection({ name: next ? "globe" : "mercator" } as any);
+    if (next) {
+      map.setFog({ color: "rgb(12,12,18)", "horizon-blend": 0.08 });
+    } else {
+      map.setFog({} as Parameters<typeof map.setFog>[0]);
+    }
   };
 
   useEffect(() => {
@@ -144,6 +159,7 @@ export default function MapView() {
         />
       )}
       {mapLoaded && <FilterBar />}
+      {mapLoaded && <GlobeToggle onToggle={handleGlobeToggle} />}
     </div>
   );
 }
