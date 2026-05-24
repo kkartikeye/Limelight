@@ -6,6 +6,7 @@ import HeatLayer from "./heat-layer";
 import Tooltip from "./tooltip";
 import StoryPanel from "@/components/panel/story-panel";
 import { useMapStore } from "@/lib/stores/map-store";
+import FilterBar from "@/components/filters/filter-bar";
 
 const INITIAL_VIEW_STATE = {
   longitude: 0,
@@ -142,6 +143,7 @@ export default function MapView() {
           onClose={closePanel}
         />
       )}
+      {mapLoaded && <FilterBar />}
     </div>
   );
 }
