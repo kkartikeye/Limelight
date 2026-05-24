@@ -34,15 +34,39 @@ const FOG_STARS_OFF: Parameters<mapboxgl.Map["setFog"]>[0] = {
   "star-intensity": 0,
 };
 
-// Label layers in Mapbox dark-v11 that need contrast treatment
-const LABEL_LAYERS = [
-  "country-label",
-  "state-label",
-  "settlement-label",
-  "settlement-subdivision-label",
-  "natural-point-label",
-  "water-point-label",
-];
+// Per-layer label styles — tuned to the dark globe + YlOrRd palette
+const LABEL_STYLES: Record<string, { color: string; haloColor: string; haloWidth: number }> = {
+  "country-label": {
+    color: "#f0e0c8",          // warm parchment — echoes the YlOrRd yellow end
+    haloColor: "rgba(0,0,0,0.92)",
+    haloWidth: 2.5,
+  },
+  "state-label": {
+    color: "#d4c4b0",          // muted warm tan — secondary to country
+    haloColor: "rgba(0,0,0,0.88)",
+    haloWidth: 2,
+  },
+  "settlement-label": {
+    color: "#b8b8c0",          // cool neutral — cities read differently from landmasses
+    haloColor: "rgba(0,0,0,0.85)",
+    haloWidth: 1.5,
+  },
+  "settlement-subdivision-label": {
+    color: "#9898a4",          // dimmer than cities — neighbourhood level
+    haloColor: "rgba(0,0,0,0.80)",
+    haloWidth: 1.5,
+  },
+  "natural-point-label": {
+    color: "#a8b8a0",          // desaturated sage — natural features read as environment
+    haloColor: "rgba(0,0,0,0.82)",
+    haloWidth: 1.5,
+  },
+  "water-point-label": {
+    color: "#7a9ab0",          // steel-blue — water reads as water
+    haloColor: "rgba(0,0,0,0.80)",
+    haloWidth: 1.5,
+  },
+};
 
 interface HoverInfo {
   name: string;
@@ -100,12 +124,13 @@ export default function MapView() {
       map.setProjection({ name: "globe" } as any);
       map.setFog(FOG_STARS_ON);
 
-      // Improve label contrast over heat-colored countries
-      LABEL_LAYERS.filter((id) => map.getLayer(id)).forEach((id) => {
-        map.setPaintProperty(id, "text-color", "#ffffff");
-        map.setPaintProperty(id, "text-halo-color", "rgba(0, 0, 0, 0.95)");
-        map.setPaintProperty(id, "text-halo-width", 2);
-        map.setPaintProperty(id, "text-halo-blur", 0.5);
+      // Apply per-layer label styles tuned to dark globe + YlOrRd palette
+      Object.entries(LABEL_STYLES).forEach(([id, style]) => {
+        if (!map.getLayer(id)) return;
+        map.setPaintProperty(id, "text-color", style.color);
+        map.setPaintProperty(id, "text-halo-color", style.haloColor);
+        map.setPaintProperty(id, "text-halo-width", style.haloWidth);
+        // No blur — blur adds fuzz that makes thin text harder to read
       });
 
       map.on("mousemove", "heat-fill", (e) => {

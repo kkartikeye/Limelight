@@ -2,7 +2,8 @@
 
 import { useEffect } from "react";
 import ArticleCard from "./article-card";
-import { getMockStories } from "@/lib/mock/mock-articles";
+import { useArticles } from "@/lib/hooks/use-articles";
+import { useMapStore } from "@/lib/stores/map-store";
 
 interface StoryPanelProps {
   countryCode: string;
@@ -24,7 +25,8 @@ export default function StoryPanel({
   score,
   onClose,
 }: StoryPanelProps) {
-  const articles = getMockStories(countryCode);
+  const { filters } = useMapStore();
+  const { articles, loading } = useArticles(countryCode, filters.timeWindow);
 
   // Close on Escape key
   useEffect(() => {
@@ -78,7 +80,14 @@ export default function StoryPanel({
 
       {/* Article list */}
       <div className="flex-1 overflow-y-auto px-5">
-        {articles.length > 0 ? (
+        {loading ? (
+          <div className="flex items-center justify-center py-16 text-gray-500">
+            <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
+              <path d="M12 2a10 10 0 0 1 10 10" />
+            </svg>
+          </div>
+        ) : articles.length > 0 ? (
           articles.map((article) => (
             <ArticleCard key={article.id} article={article} />
           ))

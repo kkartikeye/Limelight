@@ -64,9 +64,13 @@ export default function HeatLayer({ map }: HeatLayerProps) {
     );
 
     return () => {
-      if (map.getLayer("heat-outline")) map.removeLayer("heat-outline");
-      if (map.getLayer("heat-fill")) map.removeLayer("heat-fill");
-      if (map.getSource("countries")) map.removeSource("countries");
+      try {
+        if (map.getLayer("heat-outline")) map.removeLayer("heat-outline");
+        if (map.getLayer("heat-fill")) map.removeLayer("heat-fill");
+        if (map.getSource("countries")) map.removeSource("countries");
+      } catch {
+        // Map style already torn down (e.g. during HMR or parent unmount)
+      }
     };
   }, [map]);
 
