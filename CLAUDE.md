@@ -50,7 +50,8 @@ These belong to later phases — flag, don't implement:
 - Real news ingestion or NER
 - WebSocket / real-time updates (Phase 3+)
 - Auth, user accounts, alerts (Phase 4)
-- 3D globe rendering — keep as a toggle stub only
+- Globe/Mercator toggle — globe is now the permanent projection; Mercator removed
+- Sub-country granularity (city/region level) — planned for Phase 2. At zoom ≥ 5, switch to a second GeoJSON source (Natural Earth admin-1 regions) and render city-level news pins as a point-cluster layer. Architecture already supports it: `mergeGeoJsonWithScores` accepts any GeoJSON source; the Mapbox source just needs to be swapped. The DB schema (article_locations) stores city_name + lat/lng for this already.
 - Semantic search
 
 ## Code conventions

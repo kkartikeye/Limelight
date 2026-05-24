@@ -7,7 +7,7 @@ import Tooltip from "./tooltip";
 import StoryPanel from "@/components/panel/story-panel";
 import { useMapStore } from "@/lib/stores/map-store";
 import FilterBar from "@/components/filters/filter-bar";
-import GlobeToggle from "@/components/ui/globe-toggle";
+import StarToggle from "@/components/ui/star-toggle";
 import MapLoader from "@/components/ui/map-loader";
 
 const INITIAL_VIEW_STATE = {
@@ -17,6 +17,32 @@ const INITIAL_VIEW_STATE = {
 };
 
 const PANEL_WIDTH = 380;
+
+const FOG_STARS_ON: Parameters<mapboxgl.Map["setFog"]>[0] = {
+  color: "rgb(12, 12, 18)",
+  "high-color": "#00001a",
+  "space-color": "#000010",
+  "horizon-blend": 0.06,
+  "star-intensity": 0.75,
+};
+
+const FOG_STARS_OFF: Parameters<mapboxgl.Map["setFog"]>[0] = {
+  color: "rgb(12, 12, 18)",
+  "high-color": "#00001a",
+  "space-color": "#0a0a1a",
+  "horizon-blend": 0.06,
+  "star-intensity": 0,
+};
+
+// Label layers in Mapbox dark-v11 that need contrast treatment
+const LABEL_LAYERS = [
+  "country-label",
+  "state-label",
+  "settlement-label",
+  "settlement-subdivision-label",
+  "natural-point-label",
+  "water-point-label",
+];
 
 interface HoverInfo {
   name: string;
@@ -33,26 +59,21 @@ export default function MapView() {
   const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
 
-  const { isPanelOpen, selectedCountry, selectedCountryName, selectedCountryScore,
-          selectCountry, clearSelection, isGlobe, toggleGlobe } = useMapStore();
+  const {
+    isPanelOpen, selectedCountry, selectedCountryName, selectedCountryScore,
+    selectCountry, clearSelection, showStars, toggleStars,
+  } = useMapStore();
 
   const closePanel = () => {
     clearSelection();
     mapRef.current?.easeTo({ padding: { right: 0 }, duration: 250 });
   };
 
-  const handleGlobeToggle = () => {
+  const handleStarToggle = () => {
     const map = mapRef.current;
     if (!map) return;
-    const next = !isGlobe;
-    toggleGlobe();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    map.setProjection({ name: next ? "globe" : "mercator" } as any);
-    if (next) {
-      map.setFog({ color: "rgb(12,12,18)", "horizon-blend": 0.08 });
-    } else {
-      map.setFog({} as Parameters<typeof map.setFog>[0]);
-    }
+    toggleStars();
+    map.setFog(showStars ? FOG_STARS_OFF : FOG_STARS_ON);
   };
 
   useEffect(() => {
@@ -74,14 +95,18 @@ export default function MapView() {
       setMapLoaded(true);
       setContainerWidth(containerRef.current?.offsetWidth ?? 0);
 
-      // Boost label legibility over heat colors
-      ["country-label", "state-label", "settlement-label", "settlement-subdivision-label"]
-        .filter((id) => map.getLayer(id))
-        .forEach((id) => {
-          map.setPaintProperty(id, "text-halo-color", "#111");
-          map.setPaintProperty(id, "text-halo-width", 1.5);
-          map.setPaintProperty(id, "text-color", "#ffffff");
-        });
+      // Globe is the only projection — no Mercator toggle
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      map.setProjection({ name: "globe" } as any);
+      map.setFog(FOG_STARS_ON);
+
+      // Improve label contrast over heat-colored countries
+      LABEL_LAYERS.filter((id) => map.getLayer(id)).forEach((id) => {
+        map.setPaintProperty(id, "text-color", "#ffffff");
+        map.setPaintProperty(id, "text-halo-color", "rgba(0, 0, 0, 0.95)");
+        map.setPaintProperty(id, "text-halo-width", 2);
+        map.setPaintProperty(id, "text-halo-blur", 0.5);
+      });
 
       map.on("mousemove", "heat-fill", (e) => {
         if (!e.features?.length) return;
@@ -170,7 +195,7 @@ export default function MapView() {
         />
       )}
       {mapLoaded && <FilterBar />}
-      {mapLoaded && <GlobeToggle onToggle={handleGlobeToggle} />}
+      {mapLoaded && <StarToggle onToggle={handleStarToggle} />}
     </div>
   );
 }

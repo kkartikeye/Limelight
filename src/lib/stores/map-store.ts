@@ -41,8 +41,8 @@ interface MapState {
   // Filters
   filters: Filters;
 
-  // Globe
-  isGlobe: boolean;
+  // Stars
+  showStars: boolean;
 
   // Actions
   selectCountry: (code: string, name: string, score: number) => void;
@@ -50,7 +50,7 @@ interface MapState {
   setHover: (code: string | null) => void;
   setTimeWindow: (tw: TimeWindow) => void;
   toggleCategory: (cat: Category) => void;
-  toggleGlobe: () => void;
+  toggleStars: () => void;
 }
 
 export const useMapStore = create<MapState>()((set) => ({
@@ -66,7 +66,7 @@ export const useMapStore = create<MapState>()((set) => ({
     categories: [...ALL_CATEGORIES],
   },
 
-  isGlobe: false,
+  showStars: true,
 
   selectCountry: (code, name, score) =>
     set({ selectedCountry: code, selectedCountryName: name, selectedCountryScore: score, isPanelOpen: true }),
@@ -88,5 +88,5 @@ export const useMapStore = create<MapState>()((set) => ({
       return { filters: { ...s.filters, categories: next } };
     }),
 
-  toggleGlobe: () => set((s) => ({ isGlobe: !s.isGlobe })),
+  toggleStars: () => set((s) => ({ showStars: !s.showStars })),
 }));
