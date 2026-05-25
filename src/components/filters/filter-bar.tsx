@@ -20,13 +20,27 @@ const CATEGORY_COLORS: Record<Category, string> = {
 const CATEGORY_INACTIVE =
   "bg-white/5 text-gray-400 border-white/10 hover:bg-white/10 hover:text-gray-200";
 
-export default function FilterBar() {
+function relativeTime(d: Date): string {
+  const mins = Math.floor((Date.now() - d.getTime()) / 60_000);
+  if (mins < 1) return "just now";
+  if (mins === 1) return "1 min ago";
+  if (mins < 60) return `${mins} min ago`;
+  const hrs = Math.floor(mins / 60);
+  return hrs === 1 ? "1 hr ago" : `${hrs} hrs ago`;
+}
+
+interface FilterBarProps {
+  isLoading?: boolean;
+  lastUpdated?: Date | null;
+}
+
+export default function FilterBar({ isLoading = false, lastUpdated = null }: FilterBarProps) {
   const { filters, setTimeWindow, toggleCategory } = useMapStore();
   const [showCategories, setShowCategories] = useState(false);
 
   return (
     <div className="absolute bottom-6 left-4 z-10 flex flex-col gap-2">
-      {/* Category popover — shown on narrow viewports or when toggled */}
+      {/* Category popover — narrow viewports */}
       {showCategories && (
         <div className="flex flex-wrap gap-1.5 rounded-xl bg-gray-950/90 p-3 shadow-xl backdrop-blur-md sm:hidden">
           {ALL_CATEGORIES.map((cat) => {
@@ -47,7 +61,11 @@ export default function FilterBar() {
       )}
 
       {/* Main filter card */}
-      <div className="flex flex-wrap items-center gap-2 rounded-xl bg-gray-950/90 px-4 py-3 shadow-xl backdrop-blur-md">
+      <div
+        className={`flex flex-wrap items-center gap-2 rounded-xl bg-gray-950/90 px-4 py-3 shadow-xl backdrop-blur-md transition-opacity duration-300 ${
+          isLoading ? "opacity-70" : "opacity-100"
+        }`}
+      >
         {/* Time window pills */}
         <div className="flex gap-1">
           {TIME_WINDOWS.map((tw) => (
@@ -96,6 +114,32 @@ export default function FilterBar() {
           </svg>
           Filters
         </button>
+
+        {/* Status row: loading spinner or last-updated timestamp */}
+        {(isLoading || lastUpdated) && (
+          <>
+            <div className="h-4 w-px bg-white/10" />
+            {isLoading ? (
+              <span className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                <svg
+                  className="h-3 w-3 animate-spin"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                >
+                  <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
+                  <path d="M12 2a10 10 0 0 1 10 10" />
+                </svg>
+                Updating…
+              </span>
+            ) : lastUpdated ? (
+              <span className="text-[10px] text-gray-500">
+                ↻ {relativeTime(lastUpdated)}
+              </span>
+            ) : null}
+          </>
+        )}
       </div>
     </div>
   );

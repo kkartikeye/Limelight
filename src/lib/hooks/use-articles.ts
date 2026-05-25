@@ -39,6 +39,15 @@ export function useArticles(
 
   useEffect(() => {
     if (!countryCode) return;
+
+    // Zero categories — nothing can match; return empty immediately
+    if (categories.length === 0) {
+      setArticles([]);
+      setIsLive(false);
+      setLoading(false);
+      return;
+    }
+
     let active = true;
     setLoading(true);
 

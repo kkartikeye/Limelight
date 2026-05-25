@@ -344,8 +344,12 @@ async function ingestArticles(
   }
 
   if (locationRows.length) {
-    const { error: locErr } = await supabase.from("article_locations").insert(locationRows);
-    if (locErr) results.errors.push(`Location insert: ${locErr.message}`);
+    // upsert requires the unique constraint: UNIQUE (article_id, country_code)
+    // See supabase/schema.sql — run the migration if you haven't yet.
+    const { error: locErr } = await supabase
+      .from("article_locations")
+      .upsert(locationRows, { onConflict: "article_id,country_code", ignoreDuplicates: true });
+    if (locErr) results.errors.push(`Location upsert: ${locErr.message}`);
   }
 
   results.inserted += (insertedArticles ?? []).length;
@@ -416,15 +420,21 @@ async function computeScores(results: { scored: number; errors: string[] }) {
     if (scoreErr) results.errors.push(`Score upsert: ${scoreErr.message}`);
     else results.scored = scoreRows.length;
   }
+
+  // Prune buckets older than 30 days to keep region_scores bounded
+  await supabase
+    .from("region_scores")
+    .delete()
+    .lt("time_bucket", new Date(Date.now() - 30 * 24 * 3_600_000).toISOString());
 }
 
 // ─── Core ingestion run ───────────────────────────────────────────────────────
-// Single GDELT fetch (50 records, 6 s timeout) + batch DB ops + scoring.
-// Target: ≤ 9 s end-to-end so it fits Vercel Hobby's 10-second wall.
-async function runIngestion(): Promise<NextResponse> {
+// Accepts optional gdeltQuery + timespan overrides for seeding / targeted runs.
+// Default: broad English news, last 2 h — fits Vercel Hobby's 10-second wall.
+async function runIngestion(gdeltQuery = "sourcelang:english", timespan = "2h"): Promise<NextResponse> {
   const results = { fetched: 0, inserted: 0, skipped: 0, scored: 0, errors: [] as string[] };
 
-  const articles = await fetchGdelt("sourcelang:english", "2h", 50);
+  const articles = await fetchGdelt(gdeltQuery, timespan, 50);
   results.fetched = articles.length;
 
   if (articles.length > 0) {
@@ -478,10 +488,14 @@ export async function GET(req: NextRequest) {
 }
 
 // ─── Manual / GitHub Actions POST ────────────────────────────────────────────
+// Supports ?backfill=true, ?query=theme:MILITARY, ?timespan=24h
 export async function POST(req: NextRequest) {
   if (req.headers.get("x-ingest-secret") !== INGEST_SECRET) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const backfill = new URL(req.url).searchParams.get("backfill");
-  return backfill === "true" ? runBackfill() : runIngestion();
+  const sp = new URL(req.url).searchParams;
+  if (sp.get("backfill") === "true") return runBackfill();
+  const query = sp.get("query") ?? "sourcelang:english";
+  const timespan = sp.get("timespan") ?? "2h";
+  return runIngestion(query, timespan);
 }

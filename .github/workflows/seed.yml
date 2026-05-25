@@ -1,0 +1,65 @@
+name: Seed DB (one-time broad ingest)
+
+# Trigger manually from GitHub UI: Actions → Seed DB → Run workflow
+on:
+  workflow_dispatch:
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      # Each round uses a different GDELT query to maximise geographic coverage.
+      # 15-second gaps between rounds respect GDELT's rate limit (1 req / 5 s).
+
+      - name: Round 1 — broad English (last 24 h)
+        run: |
+          curl -sS -X POST \
+            -H "x-ingest-secret: ${{ secrets.INGEST_SECRET }}" \
+            "${{ secrets.PRODUCTION_URL }}/api/ingest?timespan=24h" | jq .
+
+      - name: Wait
+        run: sleep 15
+
+      - name: Round 2 — conflict & military
+        run: |
+          curl -sS -X POST \
+            -H "x-ingest-secret: ${{ secrets.INGEST_SECRET }}" \
+            "${{ secrets.PRODUCTION_URL }}/api/ingest?query=theme%3AMILITARY+OR+theme%3ATERROR&timespan=24h" | jq .
+
+      - name: Wait
+        run: sleep 15
+
+      - name: Round 3 — politics & elections
+        run: |
+          curl -sS -X POST \
+            -H "x-ingest-secret: ${{ secrets.INGEST_SECRET }}" \
+            "${{ secrets.PRODUCTION_URL }}/api/ingest?query=theme%3APOLITICS+OR+theme%3AELECTIONS&timespan=24h" | jq .
+
+      - name: Wait
+        run: sleep 15
+
+      - name: Round 4 — economy & business
+        run: |
+          curl -sS -X POST \
+            -H "x-ingest-secret: ${{ secrets.INGEST_SECRET }}" \
+            "${{ secrets.PRODUCTION_URL }}/api/ingest?query=theme%3AECONOMY+OR+theme%3ABUSINESS&timespan=24h" | jq .
+
+      - name: Wait
+        run: sleep 15
+
+      - name: Round 5 — humanitarian & disasters
+        run: |
+          curl -sS -X POST \
+            -H "x-ingest-secret: ${{ secrets.INGEST_SECRET }}" \
+            "${{ secrets.PRODUCTION_URL }}/api/ingest?query=theme%3ADISASTER+OR+theme%3AHUMANITARIAN&timespan=24h" | jq .
+
+      - name: Wait
+        run: sleep 15
+
+      - name: Round 6 — environment & climate
+        run: |
+          curl -sS -X POST \
+            -H "x-ingest-secret: ${{ secrets.INGEST_SECRET }}" \
+            "${{ secrets.PRODUCTION_URL }}/api/ingest?query=theme%3AENVIRONMENT+OR+theme%3ACLIMATE&timespan=24h" | jq .

@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 export const revalidate = 0;
 
 // GET /api/heatmap?window=24h&categories=Conflict,Politics
-// Returns { [ISO_A3]: { score, articleCount, topCategory } }
+// Returns { scores: { [ISO_A3]: { score, articleCount, topCategory } }, lastUpdated: string | null }
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
   const window = searchParams.get("window") ?? "24h";
@@ -17,14 +17,12 @@ export async function GET(req: NextRequest) {
   const hours = hoursMap[window] ?? 24;
   const since = new Date(Date.now() - hours * 3_600_000).toISOString();
 
-  // Fetch all score buckets within the requested time window
   let query = supabase
     .from("region_scores")
-    .select("country_code, score, article_count, top_category")
-    .gte("time_bucket", since);
+    .select("country_code, score, article_count, top_category, time_bucket")
+    .gte("time_bucket", since)
+    .order("time_bucket", { ascending: false });
 
-  // If specific categories are requested, only include countries whose dominant
-  // coverage type matches (top_category is the plurality category for that bucket).
   if (filterCategories.length > 0) {
     query = query.in("top_category", filterCategories);
   }
@@ -36,12 +34,12 @@ export async function GET(req: NextRequest) {
   }
 
   if (!data || data.length === 0) {
-    return NextResponse.json({});
+    return NextResponse.json({ scores: {}, lastUpdated: null });
   }
 
-  // Aggregate multiple time buckets into a single score per country.
-  // Use the sum of scores (not average) so longer windows naturally show
-  // more coverage. Then re-normalise to 0–100.
+  // Track the most recent bucket seen (for lastUpdated)
+  let latestBucket: string | null = null;
+
   const agg: Record<string, {
     scoreSum: number;
     bucketCount: number;
@@ -51,6 +49,9 @@ export async function GET(req: NextRequest) {
 
   for (const row of data) {
     const cc = row.country_code as string;
+    const bucket = row.time_bucket as string;
+    if (!latestBucket || bucket > latestBucket) latestBucket = bucket;
+
     if (!agg[cc]) agg[cc] = { scoreSum: 0, bucketCount: 0, articleCount: 0, cats: {} };
     agg[cc].scoreSum += row.score as number;
     agg[cc].bucketCount++;
@@ -59,7 +60,6 @@ export async function GET(req: NextRequest) {
     if (cat) agg[cc].cats[cat] = (agg[cc].cats[cat] ?? 0) + 1;
   }
 
-  // Re-normalise: use average score per country so the scale stays 0–100
   const maxAvg = Math.max(
     ...Object.values(agg).map((a) => a.scoreSum / a.bucketCount),
     1
@@ -75,7 +75,8 @@ export async function GET(req: NextRequest) {
     };
   }
 
-  return NextResponse.json(scores, {
-    headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120" },
-  });
+  return NextResponse.json(
+    { scores, lastUpdated: latestBucket },
+    { headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120" } }
+  );
 }

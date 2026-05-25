@@ -2,10 +2,12 @@
 
 import { useEffect } from "react";
 import type mapboxgl from "mapbox-gl";
-import { useScores } from "@/lib/hooks/use-scores";
+import type { FeatureCollection, Geometry } from "geojson";
 
 interface HeatLayerProps {
   map: mapboxgl.Map;
+  geoJson: FeatureCollection<Geometry> | null;
+  isLoading: boolean;
 }
 
 // YlOrRd ColorBrewer stops — matches d3 interpolateYlOrRd breakpoints
@@ -24,17 +26,14 @@ const FILL_COLOR_EXPR: mapboxgl.Expression = [
   100, "#800026",
 ];
 
-export default function HeatLayer({ map }: HeatLayerProps) {
-  const geoJson = useScores();
-
-  // Add source + layers once with empty data; keep them for the lifetime of the map
+export default function HeatLayer({ map, geoJson, isLoading }: HeatLayerProps) {
+  // Add source + layers once with empty data; keep for the map's lifetime
   useEffect(() => {
     map.addSource("countries", {
       type: "geojson",
       data: { type: "FeatureCollection", features: [] },
     });
 
-    // Insert fill below country labels so text stays readable
     const beforeId = map.getLayer("country-label") ? "country-label" : undefined;
 
     map.addLayer(
@@ -44,7 +43,7 @@ export default function HeatLayer({ map }: HeatLayerProps) {
         source: "countries",
         paint: {
           "fill-color": FILL_COLOR_EXPR,
-          "fill-opacity": 0.8,
+          "fill-opacity": ["interpolate", ["linear"], ["zoom"], 0, 0.85, 5, 0.7],
         },
       },
       beforeId
@@ -69,17 +68,29 @@ export default function HeatLayer({ map }: HeatLayerProps) {
         if (map.getLayer("heat-fill")) map.removeLayer("heat-fill");
         if (map.getSource("countries")) map.removeSource("countries");
       } catch {
-        // Map style already torn down (e.g. during HMR or parent unmount)
+        // Map style already torn down (HMR or parent unmount)
       }
     };
   }, [map]);
 
-  // Push score data as soon as it's ready; no-op if source was already removed
+  // Push new score data whenever it changes
   useEffect(() => {
     if (!geoJson) return;
     const source = map.getSource("countries") as mapboxgl.GeoJSONSource | undefined;
     source?.setData(geoJson);
   }, [map, geoJson]);
+
+  // Dim the fill while a filter-change re-fetch is in flight
+  useEffect(() => {
+    if (!map.getLayer("heat-fill")) return;
+    map.setPaintProperty(
+      "heat-fill",
+      "fill-opacity",
+      isLoading
+        ? 0.35
+        : ["interpolate", ["linear"], ["zoom"], 0, 0.85, 5, 0.7]
+    );
+  }, [map, isLoading]);
 
   return null;
 }

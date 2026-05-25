@@ -9,6 +9,8 @@ import { useMapStore } from "@/lib/stores/map-store";
 import FilterBar from "@/components/filters/filter-bar";
 import StarToggle from "@/components/ui/star-toggle";
 import MapLoader from "@/components/ui/map-loader";
+import { useScores } from "@/lib/hooks/use-scores";
+import type { TopCategory } from "@/lib/types/scores";
 
 const INITIAL_VIEW_STATE = {
   longitude: 0,
@@ -37,32 +39,32 @@ const FOG_STARS_OFF: Parameters<mapboxgl.Map["setFog"]>[0] = {
 // Per-layer label styles — tuned to the dark globe + YlOrRd palette
 const LABEL_STYLES: Record<string, { color: string; haloColor: string; haloWidth: number }> = {
   "country-label": {
-    color: "#f0e0c8",          // warm parchment — echoes the YlOrRd yellow end
+    color: "#f0e0c8",
     haloColor: "rgba(0,0,0,0.92)",
     haloWidth: 2.5,
   },
   "state-label": {
-    color: "#d4c4b0",          // muted warm tan — secondary to country
+    color: "#d4c4b0",
     haloColor: "rgba(0,0,0,0.88)",
     haloWidth: 2,
   },
   "settlement-label": {
-    color: "#b8b8c0",          // cool neutral — cities read differently from landmasses
+    color: "#b8b8c0",
     haloColor: "rgba(0,0,0,0.85)",
     haloWidth: 1.5,
   },
   "settlement-subdivision-label": {
-    color: "#9898a4",          // dimmer than cities — neighbourhood level
+    color: "#9898a4",
     haloColor: "rgba(0,0,0,0.80)",
     haloWidth: 1.5,
   },
   "natural-point-label": {
-    color: "#a8b8a0",          // desaturated sage — natural features read as environment
+    color: "#a8b8a0",
     haloColor: "rgba(0,0,0,0.82)",
     haloWidth: 1.5,
   },
   "water-point-label": {
-    color: "#7a9ab0",          // steel-blue — water reads as water
+    color: "#7a9ab0",
     haloColor: "rgba(0,0,0,0.80)",
     haloWidth: 1.5,
   },
@@ -72,6 +74,7 @@ interface HoverInfo {
   name: string;
   score: number;
   articleCount: number;
+  topCategory: TopCategory | null;
   x: number;
   y: number;
 }
@@ -82,6 +85,9 @@ export default function MapView() {
   const [mapLoaded, setMapLoaded] = useState(false);
   const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
+
+  // Lift scores state here so both HeatLayer and FilterBar can share it
+  const { geoJson, isLoading, lastUpdated } = useScores();
 
   const {
     isPanelOpen, selectedCountry, selectedCountryName, selectedCountryScore,
@@ -119,30 +125,31 @@ export default function MapView() {
       setMapLoaded(true);
       setContainerWidth(containerRef.current?.offsetWidth ?? 0);
 
-      // Globe is the only projection — no Mercator toggle
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       map.setProjection({ name: "globe" } as any);
       map.setFog(FOG_STARS_ON);
 
-      // Apply per-layer label styles tuned to dark globe + YlOrRd palette
       Object.entries(LABEL_STYLES).forEach(([id, style]) => {
         if (!map.getLayer(id)) return;
         map.setPaintProperty(id, "text-color", style.color);
         map.setPaintProperty(id, "text-halo-color", style.haloColor);
         map.setPaintProperty(id, "text-halo-width", style.haloWidth);
-        // No blur — blur adds fuzz that makes thin text harder to read
       });
 
       map.on("mousemove", "heat-fill", (e) => {
         if (!e.features?.length) return;
         const props = e.features[0].properties as {
-          ADMIN?: string; score?: number; articleCount?: number;
+          ADMIN?: string;
+          score?: number;
+          articleCount?: number;
+          topCategory?: string;
         } | null;
         map.getCanvas().style.cursor = "pointer";
         setHoverInfo({
           name: props?.ADMIN ?? "Unknown",
           score: props?.score ?? 0,
           articleCount: props?.articleCount ?? 0,
+          topCategory: (props?.topCategory as TopCategory) ?? null,
           x: e.point.x,
           y: e.point.y,
         });
@@ -200,12 +207,15 @@ export default function MapView() {
     <div className="relative h-full w-full">
       {!mapLoaded && <MapLoader />}
       <div ref={containerRef} className="h-full w-full" />
-      {mapLoaded && mapRef.current && <HeatLayer map={mapRef.current} />}
+      {mapLoaded && mapRef.current && (
+        <HeatLayer map={mapRef.current} geoJson={geoJson} isLoading={isLoading} />
+      )}
       {hoverInfo && !isPanelOpen && (
         <Tooltip
           name={hoverInfo.name}
           score={hoverInfo.score}
           articleCount={hoverInfo.articleCount}
+          topCategory={hoverInfo.topCategory}
           x={hoverInfo.x}
           y={hoverInfo.y}
           containerWidth={containerWidth}
@@ -219,7 +229,7 @@ export default function MapView() {
           onClose={closePanel}
         />
       )}
-      {mapLoaded && <FilterBar />}
+      {mapLoaded && <FilterBar isLoading={isLoading} lastUpdated={lastUpdated} />}
       {mapLoaded && <StarToggle onToggle={handleStarToggle} />}
     </div>
   );

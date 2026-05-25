@@ -48,6 +48,16 @@ create table if not exists article_locations (
 create index if not exists article_locations_country_idx    on article_locations (country_code);
 create index if not exists article_locations_article_id_idx on article_locations (article_id);
 
+-- Prevents duplicate location rows (e.g. from backfill re-runs).
+-- Required for the ingest route's upsert(onConflict: "article_id,country_code").
+-- Run this once in Supabase SQL Editor if you applied the schema before this line was added:
+--   ALTER TABLE article_locations
+--     ADD CONSTRAINT article_locations_article_country_unique
+--     UNIQUE (article_id, country_code);
+alter table article_locations
+  add constraint if not exists article_locations_article_country_unique
+  unique (article_id, country_code);
+
 -- ─── Precomputed scores (written by the scoring job) ─────────────────────────
 create table if not exists region_scores (
   id            uuid primary key default gen_random_uuid(),

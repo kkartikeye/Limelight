@@ -5,7 +5,7 @@ import { mockScores } from "@/lib/mock/mock-scores";
 import { useMapStore, ALL_CATEGORIES } from "@/lib/stores/map-store";
 import type { CountryScore, TopCategory } from "@/lib/types/scores";
 
-// Fallback variance for mock data when the API returns no scores
+// Fallback variance for mock data when the API has no scores yet
 function applyFilterVariance(score: number, timeWindow: string, catCount: number): number {
   const twFactor: Record<string, number> = {
     "1h": 0.4, "6h": 0.65, "24h": 1.0, "7d": 1.2, "30d": 1.35,
@@ -17,9 +17,22 @@ function applyFilterVariance(score: number, timeWindow: string, catCount: number
 
 type ApiScores = Record<string, { score: number; articleCount: number; topCategory: string | null }>;
 
-export function useScores(): FeatureCollection<Geometry> | null {
+interface HeatmapResponse {
+  scores: ApiScores;
+  lastUpdated: string | null;
+}
+
+export interface ScoresResult {
+  geoJson: FeatureCollection<Geometry> | null;
+  isLoading: boolean;
+  lastUpdated: Date | null;
+}
+
+export function useScores(): ScoresResult {
   const [rawGeoJson, setRawGeoJson] = useState<FeatureCollection<Geometry> | null>(null);
   const [apiScores, setApiScores] = useState<ApiScores | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const { filters } = useMapStore();
 
   // Load GeoJSON once
@@ -29,14 +42,20 @@ export function useScores(): FeatureCollection<Geometry> | null {
       .then((data: FeatureCollection<Geometry>) => setRawGeoJson(data));
   }, []);
 
-  // Poll /api/heatmap every 5 minutes, re-fetch immediately when filters change.
-  // Passes time window and active categories so the API aggregates accordingly.
+  // Poll /api/heatmap every 5 minutes; re-fetch immediately when filters change.
   useEffect(() => {
-    let active = true;
+    // Zero-categories: skip API entirely — return dimmed GeoJSON via useMemo
+    if (filters.categories.length === 0) {
+      setApiScores(null);
+      setIsLoading(false);
+      return;
+    }
 
-    // Build category param only when not all categories are selected
+    let active = true;
+    setIsLoading(true);
+
     const catParam =
-      filters.categories.length < ALL_CATEGORIES.length && filters.categories.length > 0
+      filters.categories.length < ALL_CATEGORIES.length
         ? `&categories=${filters.categories.join(",")}`
         : "";
 
@@ -46,16 +65,19 @@ export function useScores(): FeatureCollection<Geometry> | null {
           `/api/heatmap?window=${filters.timeWindow}${catParam}&_=${Date.now()}`
         );
         if (!res.ok) return;
-        const data = (await res.json()) as ApiScores;
+        const data = (await res.json()) as HeatmapResponse;
         if (!active) return;
-        if (Object.keys(data).length > 0) {
-          setApiScores(data);
+
+        if (data.scores && Object.keys(data.scores).length > 0) {
+          setApiScores(data.scores);
+          if (data.lastUpdated) setLastUpdated(new Date(data.lastUpdated));
         } else {
-          // Empty response → fall through to mock in useMemo
-          setApiScores(null);
+          setApiScores(null); // empty → useMemo falls back to mock
         }
       } catch {
         // Network error — keep existing scores
+      } finally {
+        if (active) setIsLoading(false);
       }
     }
 
@@ -65,10 +87,15 @@ export function useScores(): FeatureCollection<Geometry> | null {
       active = false;
       clearInterval(interval);
     };
-  }, [filters.timeWindow, filters.categories]); // re-fetch when filters change
+  }, [filters.timeWindow, filters.categories]); // re-fetch on filter change
 
-  return useMemo(() => {
+  const geoJson = useMemo(() => {
     if (!rawGeoJson) return null;
+
+    // Zero categories → dim the whole map (all scores = 0)
+    if (filters.categories.length === 0) {
+      return mergeGeoJsonWithScores(rawGeoJson, []);
+    }
 
     const validCategories = new Set<TopCategory>([
       "Conflict", "Politics", "Economics", "Technology",
@@ -78,7 +105,6 @@ export function useScores(): FeatureCollection<Geometry> | null {
     let scores: CountryScore[];
 
     if (apiScores && Object.keys(apiScores).length > 0) {
-      // Real data from DB
       scores = Object.entries(apiScores).map(([code, val]) => {
         const cat = val.topCategory as TopCategory;
         return {
@@ -90,7 +116,6 @@ export function useScores(): FeatureCollection<Geometry> | null {
         };
       });
     } else {
-      // Mock fallback while DB is being populated
       scores = mockScores.map((s) => ({
         ...s,
         score: applyFilterVariance(s.score, filters.timeWindow, filters.categories.length),
@@ -99,4 +124,6 @@ export function useScores(): FeatureCollection<Geometry> | null {
 
     return mergeGeoJsonWithScores(rawGeoJson, scores);
   }, [rawGeoJson, apiScores, filters]);
+
+  return { geoJson, isLoading, lastUpdated };
 }
