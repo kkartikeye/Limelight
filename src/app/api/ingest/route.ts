@@ -600,14 +600,21 @@ async function runBackfill(): Promise<NextResponse> {
       .from("article_locations").select("id")
       .eq("article_id", row.id).eq("is_primary", true).maybeSingle();
 
+    const geoFields = {
+      country_code: geo.iso3,
+      confidence:   geo.confidence,
+      ...(geo.cityName && { city_name:  geo.cityName }),
+      ...(geo.lat != null && { latitude:  geo.lat }),
+      ...(geo.lng != null && { longitude: geo.lng }),
+    };
+
     if (existing) {
       await supabase.from("article_locations")
-        .update({ country_code: geo.iso3, confidence: geo.confidence })
+        .update(geoFields)
         .eq("id", existing.id);
     } else {
       await supabase.from("article_locations").insert({
-        article_id: row.id, country_code: geo.iso3,
-        is_primary: true, confidence: geo.confidence,
+        article_id: row.id, is_primary: true, ...geoFields,
       });
     }
     tagged++;

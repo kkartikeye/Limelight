@@ -3,22 +3,12 @@
 import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import type { PinsGeoJson, PinProperties } from "@/lib/hooks/use-pins";
+import { MapTokens, CATEGORY_COLORS } from "@/lib/design-tokens";
 
 interface PinLayerProps {
   map: mapboxgl.Map;
   pinsGeoJson: PinsGeoJson | null;
 }
-
-const CATEGORY_COLORS: Record<string, string> = {
-  Conflict:      "#f87171",
-  Humanitarian:  "#fb923c",
-  Politics:      "#60a5fa",
-  Economics:     "#34d399",
-  Technology:    "#a78bfa",
-  Environment:   "#2dd4bf",
-  Sports:        "#fbbf24",
-  Entertainment: "#f472b6",
-};
 
 export default function PinLayer({ map, pinsGeoJson }: PinLayerProps) {
   const popupRef = useRef<mapboxgl.Popup | null>(null);
@@ -145,23 +135,24 @@ export default function PinLayer({ map, pinsGeoJson }: PinLayerProps) {
 
       popupRef.current?.remove();
 
-      const color = CATEGORY_COLORS[props.category] ?? "#9ca3af";
+      const color    = CATEGORY_COLORS[props.category] ?? "#9ca3af";
       const location = props.city_name ?? props.country_code;
       const published = new Date(props.published_at).toLocaleDateString(undefined, {
         month: "short", day: "numeric",
       });
+      const { popup: p } = MapTokens;
 
-      popupRef.current = new mapboxgl.Popup({ closeButton: true, maxWidth: "280px" })
+      popupRef.current = new mapboxgl.Popup({ closeButton: true, maxWidth: "290px", className: "limelight-popup" })
         .setLngLat(coords)
         .setHTML(`
-          <div style="font-family:system-ui,sans-serif;padding:4px 2px;">
-            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
-              <span style="background:${color};color:#000;font-size:10px;font-weight:600;padding:2px 7px;border-radius:99px;">${props.category}</span>
-              <span style="color:#6b7280;font-size:10px;">${location} · ${published}</span>
+          <div style="font-family:system-ui,sans-serif;">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
+              <span style="background:${color};color:#000;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;letter-spacing:0.02em;">${props.category}</span>
+              <span style="color:${p.textMuted};font-size:10px;">${location} · ${published}</span>
             </div>
-            <p style="margin:0 0 8px;font-size:13px;font-weight:500;line-height:1.4;color:#f3f4f6;">${props.title}</p>
+            <p style="margin:0 0 10px;font-size:13px;font-weight:500;line-height:1.45;color:${p.text};">${props.title}</p>
             <a href="${props.url}" target="_blank" rel="noopener noreferrer"
-              style="font-size:11px;color:#60a5fa;text-decoration:none;">Read article →</a>
+              style="font-size:11px;color:${p.link};text-decoration:none;font-weight:500;">Read article →</a>
           </div>
         `)
         .addTo(map);

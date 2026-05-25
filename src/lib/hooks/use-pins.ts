@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import type { FeatureCollection, Point } from "geojson";
 import { useMapStore, ALL_CATEGORIES } from "@/lib/stores/map-store";
 
+// Match the heatmap refresh cadence so pins stay in sync with the live layer
+const REFRESH_INTERVAL_S = 90;
+
 export interface PinProperties {
   id: string;
   title: string;
@@ -35,14 +38,31 @@ export function usePins(): PinsResult {
         ? `&categories=${filters.categories.join(",")}`
         : "";
 
-    fetch(`/api/pins?window=${filters.timeWindow}${catParam}`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data: PinsGeoJson | null) => {
-        if (active && data) setPinsGeoJson(data);
-      })
-      .catch(() => {/* keep existing */});
+    async function doFetch() {
+      if (!active) return;
+      try {
+        const res = await fetch(
+          `/api/pins?window=${filters.timeWindow}${catParam}&_=${Date.now()}`
+        );
+        if (!res.ok || !active) return;
+        const data = (await res.json()) as PinsGeoJson;
+        if (active) setPinsGeoJson(data);
+      } catch {
+        // Network error — keep existing pins
+      }
+    }
 
-    return () => { active = false; };
+    doFetch();
+
+    // Auto-refresh on the same cadence as useScores; skip when tab is hidden
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") doFetch();
+    }, REFRESH_INTERVAL_S * 1000);
+
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
   }, [filters.timeWindow, filters.categories]);
 
   return { pinsGeoJson };

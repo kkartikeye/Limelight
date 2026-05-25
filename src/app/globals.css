@@ -43,3 +43,51 @@ body {
   from { opacity: 1; pointer-events: auto; }
   to   { opacity: 0; pointer-events: none; }
 }
+
+/* ── Mapbox article-pin popup — dark theme ─────────────────────────────────── */
+/* Targets only .limelight-popup so the default Mapbox popups stay untouched.  */
+/* To restyle, change the colour values here (they mirror MapTokens.popup).    */
+.limelight-popup .mapboxgl-popup-content {
+  background:     rgba(8, 10, 16, 0.97);
+  border:         1px solid rgba(255, 255, 255, 0.07);
+  border-radius:  10px;
+  padding:        12px 14px;
+  box-shadow:     0 20px 60px rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Arrow tip — match popup background for each anchor direction */
+.limelight-popup.mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip {
+  border-top-color: rgba(8, 10, 16, 0.97);
+}
+.limelight-popup.mapboxgl-popup-anchor-top .mapboxgl-popup-tip {
+  border-bottom-color: rgba(8, 10, 16, 0.97);
+}
+.limelight-popup.mapboxgl-popup-anchor-left .mapboxgl-popup-tip {
+  border-right-color: rgba(8, 10, 16, 0.97);
+}
+.limelight-popup.mapboxgl-popup-anchor-right .mapboxgl-popup-tip {
+  border-left-color: rgba(8, 10, 16, 0.97);
+}
+.limelight-popup.mapboxgl-popup-anchor-bottom-left .mapboxgl-popup-tip,
+.limelight-popup.mapboxgl-popup-anchor-bottom-right .mapboxgl-popup-tip {
+  border-top-color: rgba(8, 10, 16, 0.97);
+}
+.limelight-popup.mapboxgl-popup-anchor-top-left .mapboxgl-popup-tip,
+.limelight-popup.mapboxgl-popup-anchor-top-right .mapboxgl-popup-tip {
+  border-bottom-color: rgba(8, 10, 16, 0.97);
+}
+
+.limelight-popup .mapboxgl-popup-close-button {
+  color:       rgba(255, 255, 255, 0.35);
+  font-size:   18px;
+  line-height: 1;
+  padding:     4px 8px;
+  border-radius: 4px;
+  transition:  color 0.15s, background 0.15s;
+}
+.limelight-popup .mapboxgl-popup-close-button:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color:      rgba(255, 255, 255, 0.85);
+}
