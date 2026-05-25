@@ -245,13 +245,16 @@ function detectCategory(title: string): string {
 }
 
 // ─── GDELT fetch ──────────────────────────────────────────────────────────────
-// 6-second timeout keeps us inside Vercel Hobby's 10s wall.
+// On Vercel (VERCEL_ENV is set) keep under the 10 s wall with a 6 s abort.
+// Locally (npm run dev) or in GitHub Actions jobs, allow 25 s.
+const GDELT_TIMEOUT_MS = process.env.VERCEL_ENV ? 6_000 : 25_000;
+
 async function fetchGdelt(query: string, timespan = "2h", maxrecords = 50): Promise<GdeltArticle[]> {
   const params = new URLSearchParams({
     query, mode: "artlist", maxrecords: String(maxrecords), format: "json", timespan,
   });
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 6_000);
+  const timer = setTimeout(() => controller.abort(), GDELT_TIMEOUT_MS);
   try {
     const res = await fetch(`${GDELT_BASE}?${params}`, { signal: controller.signal });
     if (!res.ok) return [];
