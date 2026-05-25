@@ -204,7 +204,133 @@ const DOMAIN_COUNTRY: Record<string, string> = {
   "globo.com": "BRA", "folha.uol.com.br": "BRA",
 };
 
-function extractCountry(title: string, domain?: string): { iso3: string; confidence: number } | null {
+// ─── City coordinates lookup ─────────────────────────────────────────────────
+// Keyed by the city name as it appears in headlines. Each match yields
+// lat/lng for pin placement and an ISO3 so we can skip the title regex pass.
+const CITY_COORDS: [RegExp, { city: string; lat: number; lng: number; iso3: string }][] = [
+  [/\bLondon\b/i,          { city: "London",       lat:  51.509, lng:   -0.118, iso3: "GBR" }],
+  [/\bParis\b/i,           { city: "Paris",        lat:  48.857, lng:    2.347, iso3: "FRA" }],
+  [/\bBerlin\b/i,          { city: "Berlin",       lat:  52.520, lng:   13.405, iso3: "DEU" }],
+  [/\bMoscow\b|Kremlin\b/i,{ city: "Moscow",       lat:  55.755, lng:   37.617, iso3: "RUS" }],
+  [/\bBeijing\b/i,         { city: "Beijing",      lat:  39.906, lng:  116.397, iso3: "CHN" }],
+  [/\bShanghai\b/i,        { city: "Shanghai",     lat:  31.228, lng:  121.474, iso3: "CHN" }],
+  [/\bHong Kong\b/i,       { city: "Hong Kong",    lat:  22.319, lng:  114.170, iso3: "CHN" }],
+  [/\bWashington\s*D\.?C\.?|White House|Capitol Hill\b/i, { city: "Washington D.C.", lat: 38.895, lng: -77.037, iso3: "USA" }],
+  [/\bNew York City|NYC\b/i,{ city: "New York",    lat:  40.713, lng:  -74.006, iso3: "USA" }],
+  [/\bLos Angeles\b/i,     { city: "Los Angeles",  lat:  34.052, lng: -118.244, iso3: "USA" }],
+  [/\bChicago\b/i,         { city: "Chicago",      lat:  41.878, lng:  -87.630, iso3: "USA" }],
+  [/\bTokyo\b/i,           { city: "Tokyo",        lat:  35.690, lng:  139.692, iso3: "JPN" }],
+  [/\bOsaka\b/i,           { city: "Osaka",        lat:  34.694, lng:  135.502, iso3: "JPN" }],
+  [/\bSeoul\b/i,           { city: "Seoul",        lat:  37.566, lng:  126.978, iso3: "KOR" }],
+  [/\bPyongyang\b/i,       { city: "Pyongyang",    lat:  39.019, lng:  125.755, iso3: "PRK" }],
+  [/\bKyiv\b|Kiev\b/i,     { city: "Kyiv",         lat:  50.450, lng:   30.523, iso3: "UKR" }],
+  [/\bTehran\b/i,          { city: "Tehran",       lat:  35.689, lng:   51.389, iso3: "IRN" }],
+  [/\bBaghdad\b/i,         { city: "Baghdad",      lat:  33.341, lng:   44.401, iso3: "IRQ" }],
+  [/\bMosul\b/i,           { city: "Mosul",        lat:  36.340, lng:   43.130, iso3: "IRQ" }],
+  [/\bTel Aviv\b/i,        { city: "Tel Aviv",     lat:  32.085, lng:   34.781, iso3: "ISR" }],
+  [/\bJerusalem\b/i,       { city: "Jerusalem",    lat:  31.769, lng:   35.216, iso3: "ISR" }],
+  [/\bGaza\b/i,            { city: "Gaza",         lat:  31.500, lng:   34.467, iso3: "PSE" }],
+  [/\bBeirut\b/i,          { city: "Beirut",       lat:  33.888, lng:   35.495, iso3: "LBN" }],
+  [/\bDamascus\b/i,        { city: "Damascus",     lat:  33.510, lng:   36.292, iso3: "SYR" }],
+  [/\bAleppo\b/i,          { city: "Aleppo",       lat:  36.203, lng:   37.161, iso3: "SYR" }],
+  [/\bKabul\b/i,           { city: "Kabul",        lat:  34.525, lng:   69.178, iso3: "AFG" }],
+  [/\bIslamabad\b/i,       { city: "Islamabad",    lat:  33.698, lng:   73.047, iso3: "PAK" }],
+  [/\bKarachi\b/i,         { city: "Karachi",      lat:  24.861, lng:   67.010, iso3: "PAK" }],
+  [/\bMumbai\b/i,          { city: "Mumbai",       lat:  19.076, lng:   72.878, iso3: "IND" }],
+  [/\bNew Delhi\b/i,       { city: "New Delhi",    lat:  28.614, lng:   77.209, iso3: "IND" }],
+  [/\bDhaka\b/i,           { city: "Dhaka",        lat:  23.811, lng:   90.413, iso3: "BGD" }],
+  [/\bKathmandu\b/i,       { city: "Kathmandu",    lat:  27.717, lng:   85.314, iso3: "NPL" }],
+  [/\bKolkata\b/i,         { city: "Kolkata",      lat:  22.573, lng:   88.364, iso3: "IND" }],
+  [/\bJakarta\b/i,         { city: "Jakarta",      lat:  -6.211, lng:  106.845, iso3: "IDN" }],
+  [/\bManila\b/i,          { city: "Manila",       lat:  14.599, lng:  120.984, iso3: "PHL" }],
+  [/\bBangkok\b/i,         { city: "Bangkok",      lat:  13.754, lng:  100.502, iso3: "THA" }],
+  [/\bHanoi\b/i,           { city: "Hanoi",        lat:  21.028, lng:  105.854, iso3: "VNM" }],
+  [/\bPhnom Penh\b/i,      { city: "Phnom Penh",   lat:  11.562, lng:  104.916, iso3: "KHM" }],
+  [/\bNairobi\b/i,         { city: "Nairobi",      lat:  -1.292, lng:   36.822, iso3: "KEN" }],
+  [/\bLagos\b/i,           { city: "Lagos",        lat:   6.524, lng:    3.379, iso3: "NGA" }],
+  [/\bAbuja\b/i,           { city: "Abuja",        lat:   9.058, lng:    7.499, iso3: "NGA" }],
+  [/\bAccra\b/i,           { city: "Accra",        lat:   5.603, lng:   -0.187, iso3: "GHA" }],
+  [/\bDakar\b/i,           { city: "Dakar",        lat:  14.693, lng:  -17.448, iso3: "SEN" }],
+  [/\bAddis Ababa\b/i,     { city: "Addis Ababa",  lat:   9.025, lng:   38.747, iso3: "ETH" }],
+  [/\bKhartoum\b/i,        { city: "Khartoum",     lat:  15.508, lng:   32.560, iso3: "SDN" }],
+  [/\bLuanda\b/i,          { city: "Luanda",       lat:  -8.839, lng:   13.290, iso3: "AGO" }],
+  [/\bKinshasa\b/i,        { city: "Kinshasa",     lat:  -4.322, lng:   15.322, iso3: "COD" }],
+  [/\bMogadishu\b/i,       { city: "Mogadishu",    lat:   2.046, lng:   45.343, iso3: "SOM" }],
+  [/\bCairo\b/i,           { city: "Cairo",        lat:  30.044, lng:   31.236, iso3: "EGY" }],
+  [/\bTripoli\b/i,         { city: "Tripoli",      lat:  32.887, lng:   13.191, iso3: "LBY" }],
+  [/\bTunis\b/i,           { city: "Tunis",        lat:  36.819, lng:   10.166, iso3: "TUN" }],
+  [/\bAlgiers\b/i,         { city: "Algiers",      lat:  36.738, lng:    3.086, iso3: "DZA" }],
+  [/\bRabat\b/i,           { city: "Rabat",        lat:  34.013, lng:   -6.832, iso3: "MAR" }],
+  [/\bCasablanca\b/i,      { city: "Casablanca",   lat:  33.573, lng:   -7.589, iso3: "MAR" }],
+  [/\bRiyadh\b/i,          { city: "Riyadh",       lat:  24.688, lng:   46.722, iso3: "SAU" }],
+  [/\bDoha\b/i,            { city: "Doha",         lat:  25.285, lng:   51.531, iso3: "QAT" }],
+  [/\bDubai\b/i,           { city: "Dubai",        lat:  25.205, lng:   55.271, iso3: "ARE" }],
+  [/\bAmman\b/i,           { city: "Amman",        lat:  31.956, lng:   35.945, iso3: "JOR" }],
+  [/\bAnkara\b/i,          { city: "Ankara",       lat:  39.921, lng:   32.854, iso3: "TUR" }],
+  [/\bIstanbul\b/i,        { city: "Istanbul",     lat:  41.015, lng:   28.979, iso3: "TUR" }],
+  [/\bAthens\b/i,          { city: "Athens",       lat:  37.984, lng:   23.728, iso3: "GRC" }],
+  [/\bRome\b/i,            { city: "Rome",         lat:  41.900, lng:   12.496, iso3: "ITA" }],
+  [/\bMadrid\b/i,          { city: "Madrid",       lat:  40.417, lng:   -3.703, iso3: "ESP" }],
+  [/\bBarcelona\b/i,       { city: "Barcelona",    lat:  41.387, lng:    2.170, iso3: "ESP" }],
+  [/\bLisbon\b/i,          { city: "Lisbon",       lat:  38.717, lng:   -9.143, iso3: "PRT" }],
+  [/\bVienna\b/i,          { city: "Vienna",       lat:  48.208, lng:   16.373, iso3: "AUT" }],
+  [/\bWarsaw\b/i,          { city: "Warsaw",       lat:  52.230, lng:   21.012, iso3: "POL" }],
+  [/\bBudapest\b/i,        { city: "Budapest",     lat:  47.498, lng:   19.040, iso3: "HUN" }],
+  [/\bPrague\b/i,          { city: "Prague",       lat:  50.076, lng:   14.437, iso3: "CZE" }],
+  [/\bBucharest\b/i,       { city: "Bucharest",    lat:  44.432, lng:   26.103, iso3: "ROU" }],
+  [/\bBelgrade\b/i,        { city: "Belgrade",     lat:  44.787, lng:   20.457, iso3: "SRB" }],
+  [/\bSarajevo\b/i,        { city: "Sarajevo",     lat:  43.850, lng:   18.356, iso3: "BIH" }],
+  [/\bKiev\b|Kyiv\b/i,     { city: "Kyiv",         lat:  50.450, lng:   30.523, iso3: "UKR" }],
+  [/\bMinsk\b/i,           { city: "Minsk",        lat:  53.905, lng:   27.562, iso3: "BLR" }],
+  [/\bStockholm\b/i,       { city: "Stockholm",    lat:  59.334, lng:   18.063, iso3: "SWE" }],
+  [/\bOslo\b/i,            { city: "Oslo",         lat:  59.913, lng:   10.752, iso3: "NOR" }],
+  [/\bHelsinki\b/i,        { city: "Helsinki",     lat:  60.169, lng:   24.935, iso3: "FIN" }],
+  [/\bCopenhagen\b/i,      { city: "Copenhagen",   lat:  55.676, lng:   12.568, iso3: "DNK" }],
+  [/\bAmsterdam\b/i,       { city: "Amsterdam",    lat:  52.370, lng:    4.895, iso3: "NLD" }],
+  [/\bBrussels\b/i,        { city: "Brussels",     lat:  50.850, lng:    4.352, iso3: "BEL" }],
+  [/\bZurich\b/i,          { city: "Zurich",       lat:  47.377, lng:    8.540, iso3: "CHE" }],
+  [/\bGeneva\b/i,          { city: "Geneva",       lat:  46.204, lng:    6.143, iso3: "CHE" }],
+  [/\bMexico City\b/i,     { city: "Mexico City",  lat:  19.433, lng:  -99.133, iso3: "MEX" }],
+  [/\bBogotá\b|Bogota\b/i, { city: "Bogotá",       lat:   4.711, lng:  -74.073, iso3: "COL" }],
+  [/\bLima\b/i,            { city: "Lima",         lat: -12.046, lng:  -77.043, iso3: "PER" }],
+  [/\bSantiago\b/i,        { city: "Santiago",     lat: -33.459, lng:  -70.648, iso3: "CHL" }],
+  [/\bBuenos Aires\b/i,    { city: "Buenos Aires", lat: -34.604, lng:  -58.382, iso3: "ARG" }],
+  [/\bBrasilia\b/i,        { city: "Brasília",     lat: -15.780, lng:  -47.929, iso3: "BRA" }],
+  [/\bSão Paulo\b/i,       { city: "São Paulo",    lat: -23.549, lng:  -46.638, iso3: "BRA" }],
+  [/\bCanberra\b/i,        { city: "Canberra",     lat: -35.282, lng:  149.129, iso3: "AUS" }],
+  [/\bSydney\b/i,          { city: "Sydney",       lat: -33.869, lng:  151.209, iso3: "AUS" }],
+  [/\bMelbourne\b/i,       { city: "Melbourne",    lat: -37.814, lng:  144.963, iso3: "AUS" }],
+  [/\bOttawa\b/i,          { city: "Ottawa",       lat:  45.425, lng:  -75.695, iso3: "CAN" }],
+  [/\bToronto\b/i,         { city: "Toronto",      lat:  43.653, lng:  -79.383, iso3: "CAN" }],
+  [/\bPort-au-Prince\b/i,  { city: "Port-au-Prince", lat: 18.543, lng: -72.338, iso3: "HTI" }],
+  [/\bKampala\b/i,         { city: "Kampala",      lat:   0.347, lng:   32.583, iso3: "UGA" }],
+  [/\bKigali\b/i,          { city: "Kigali",       lat:  -1.943, lng:   30.060, iso3: "RWA" }],
+  [/\bLusaka\b/i,          { city: "Lusaka",       lat: -15.417, lng:   28.283, iso3: "ZMB" }],
+  [/\bHarare\b/i,          { city: "Harare",       lat: -17.829, lng:   31.052, iso3: "ZWE" }],
+  [/\bMaputo\b/i,          { city: "Maputo",       lat: -25.966, lng:   32.571, iso3: "MOZ" }],
+  [/\bYangon\b/i,          { city: "Yangon",       lat:  16.866, lng:   96.195, iso3: "MMR" }],
+  [/\bHo Chi Minh\b/i,     { city: "Ho Chi Minh City", lat: 10.823, lng: 106.630, iso3: "VNM" }],
+  [/\bKuala Lumpur\b/i,    { city: "Kuala Lumpur", lat:   3.140, lng:  101.687, iso3: "MYS" }],
+  [/\bSingapore\b/i,       { city: "Singapore",    lat:   1.290, lng:  103.852, iso3: "SGP" }],
+  [/\bTaipei\b/i,          { city: "Taipei",       lat:  25.048, lng:  121.513, iso3: "TWN" }],
+];
+
+interface GeoResult {
+  iso3: string;
+  confidence: number;
+  cityName?: string;
+  lat?: number;
+  lng?: number;
+}
+
+function extractCountry(title: string, domain?: string): GeoResult | null {
+  // Try city lookup first — more specific and carries coordinates
+  for (const [pattern, city] of CITY_COORDS) {
+    if (pattern.test(title)) {
+      return { iso3: city.iso3, confidence: 0.9, cityName: city.city, lat: city.lat, lng: city.lng };
+    }
+  }
+  // Fall back to country-level regex
   for (const [pattern, iso3] of COUNTRY_NAME_MAP) {
     if (pattern.test(title)) return { iso3, confidence: 0.85 };
   }
@@ -329,7 +455,15 @@ async function ingestArticles(
   if (artErr) { results.errors.push(`Batch insert: ${artErr.message}`); return; }
 
   // 4. Bulk insert locations (articles are new, so no location conflicts)
-  const locationRows: { article_id: string; country_code: string; is_primary: boolean; confidence: number }[] = [];
+  const locationRows: {
+    article_id: string;
+    country_code: string;
+    is_primary: boolean;
+    confidence: number;
+    city_name?: string;
+    latitude?: number;
+    longitude?: number;
+  }[] = [];
   const thashToArticle = new Map(newArticles.map((a) => [titleHash(a.title), a]));
 
   for (const inserted of insertedArticles ?? []) {
@@ -342,6 +476,9 @@ async function ingestArticles(
         country_code: geo.iso3,
         is_primary: true,
         confidence: geo.confidence,
+        ...(geo.cityName && { city_name: geo.cityName }),
+        ...(geo.lat != null && { latitude: geo.lat }),
+        ...(geo.lng != null && { longitude: geo.lng }),
       });
     }
   }

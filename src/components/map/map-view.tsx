@@ -3,13 +3,17 @@
 import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import HeatLayer from "./heat-layer";
+import PinLayer from "./pin-layer";
 import Tooltip from "./tooltip";
 import StoryPanel from "@/components/panel/story-panel";
 import { useMapStore } from "@/lib/stores/map-store";
+import { useWatchlistStore } from "@/lib/stores/watchlist-store";
 import FilterBar from "@/components/filters/filter-bar";
 import StarToggle from "@/components/ui/star-toggle";
+import WatchlistWidget from "@/components/ui/watchlist-widget";
 import MapLoader from "@/components/ui/map-loader";
 import { useScores } from "@/lib/hooks/use-scores";
+import { usePins } from "@/lib/hooks/use-pins";
 import type { TopCategory } from "@/lib/types/scores";
 
 const INITIAL_VIEW_STATE = {
@@ -37,41 +41,47 @@ const FOG_STARS_OFF: Parameters<mapboxgl.Map["setFog"]>[0] = {
 };
 
 // Per-layer label styles — tuned to the dark globe + YlOrRd palette.
-// "country-label" is intentionally absent: it is hidden on map load and
-// replaced by HeatLayer's score-adaptive "country-label-custom" symbol layer.
+// "country-label" uses Approach C: strong opaque halo over any fill color so
+// the basemap's MultiPolygon-aware centroid placement avoids duplicate labels.
 const LABEL_STYLES: Record<string, { color: string; haloColor: string; haloWidth: number }> = {
-  // Continent names — quiet chrome, not data. Visually demoted.
+  // Country names — warm parchment on opaque black halo; readable on any fill.
+  "country-label": {
+    color: "#f0e8d8",
+    haloColor: "rgba(0,0,0,0.95)",
+    haloWidth: 2.8,
+  },
+  // Continent names — quiet chrome, visually demoted.
   "continent-label": {
-    color: "#5a6070",
+    color: "#4e5565",
     haloColor: "rgba(0,0,0,0.7)",
     haloWidth: 1,
   },
   // State / province names — secondary to country
   "state-label": {
-    color: "#d4c4b0",
+    color: "#c8b89c",
     haloColor: "rgba(0,0,0,0.88)",
     haloWidth: 2,
   },
   // Settlement hierarchy
   "settlement-label": {
-    color: "#b8b8c0",
+    color: "#aaaaB4",
     haloColor: "rgba(0,0,0,0.85)",
     haloWidth: 1.5,
   },
   "settlement-subdivision-label": {
-    color: "#9898a4",
+    color: "#909098",
     haloColor: "rgba(0,0,0,0.80)",
     haloWidth: 1.5,
   },
   // Physical geography
   "natural-point-label": {
-    color: "#a8b8a0",
+    color: "#9caa96",
     haloColor: "rgba(0,0,0,0.82)",
     haloWidth: 1.5,
   },
-  // Water: steel-blue, minimal halo (sits on dark space — halo adds fuzz)
+  // Water: steel-blue tint, minimal halo
   "water-point-label": {
-    color: "#9ab4c8",
+    color: "#8aaac0",
     haloColor: "rgba(0,0,0,0.5)",
     haloWidth: 1,
   },
@@ -94,12 +104,14 @@ export default function MapView() {
   const [containerWidth, setContainerWidth] = useState(0);
 
   // Lift scores state here so both HeatLayer and FilterBar can share it
-  const { geoJson, isLoading, lastUpdated } = useScores();
+  const { geoJson, isLoading, lastUpdated, nextRefreshIn, isAutoRefreshing } = useScores();
+  const { pinsGeoJson } = usePins();
 
   const {
     isPanelOpen, selectedCountry, selectedCountryName, selectedCountryScore,
     selectCountry, clearSelection, showStars, toggleStars,
   } = useMapStore();
+  const { watched: watchedIsos } = useWatchlistStore();
 
   const closePanel = () => {
     clearSelection();
@@ -136,13 +148,6 @@ export default function MapView() {
       map.setProjection({ name: "globe" } as any);
       map.setFog(FOG_STARS_ON);
 
-      // Hide the basemap country-label immediately — HeatLayer replaces it with
-      // a score-adaptive custom symbol layer. Done here (not in HeatLayer) so
-      // there's no visible flash of the old labels between map load and first render.
-      if (map.getLayer("country-label")) {
-        map.setLayoutProperty("country-label", "visibility", "none");
-      }
-
       Object.entries(LABEL_STYLES).forEach(([id, style]) => {
         if (!map.getLayer(id)) return;
         map.setPaintProperty(id, "text-color", style.color);
@@ -154,11 +159,18 @@ export default function MapView() {
         if (!e.features?.length) return;
         const props = e.features[0].properties as {
           ADMIN?: string;
+          ISO_A3?: string;
           score?: number;
           articleCount?: number;
           topCategory?: string;
         } | null;
         map.getCanvas().style.cursor = "pointer";
+        // Highlight the hovered country's border
+        if (map.getLayer("heat-hover-outline")) {
+          map.setFilter("heat-hover-outline", [
+            "==", ["get", "ISO_A3"], props?.ISO_A3 ?? "",
+          ]);
+        }
         setHoverInfo({
           name: props?.ADMIN ?? "Unknown",
           score: props?.score ?? 0,
@@ -171,6 +183,10 @@ export default function MapView() {
 
       map.on("mouseleave", "heat-fill", () => {
         map.getCanvas().style.cursor = "";
+        // Clear hover highlight
+        if (map.getLayer("heat-hover-outline")) {
+          map.setFilter("heat-hover-outline", ["==", ["get", "ISO_A3"], ""]);
+        }
         setHoverInfo(null);
       });
 
@@ -222,9 +238,18 @@ export default function MapView() {
       {!mapLoaded && <MapLoader />}
       <div ref={containerRef} className="h-full w-full" />
       {mapLoaded && mapRef.current && (
-        <HeatLayer map={mapRef.current} geoJson={geoJson} isLoading={isLoading} />
+        <>
+          <HeatLayer
+            map={mapRef.current}
+            geoJson={geoJson}
+            isLoading={isLoading}
+            selectedIso={selectedCountry}
+            watchedIsos={watchedIsos}
+          />
+          <PinLayer map={mapRef.current} pinsGeoJson={pinsGeoJson} />
+        </>
       )}
-      {hoverInfo && !isPanelOpen && (
+      {hoverInfo && (
         <Tooltip
           name={hoverInfo.name}
           score={hoverInfo.score}
@@ -232,7 +257,7 @@ export default function MapView() {
           topCategory={hoverInfo.topCategory}
           x={hoverInfo.x}
           y={hoverInfo.y}
-          containerWidth={containerWidth}
+          containerWidth={containerWidth - (isPanelOpen ? PANEL_WIDTH : 0)}
         />
       )}
       {isPanelOpen && selectedCountry && (
@@ -243,8 +268,25 @@ export default function MapView() {
           onClose={closePanel}
         />
       )}
-      {mapLoaded && <FilterBar isLoading={isLoading} lastUpdated={lastUpdated} />}
+      {mapLoaded && (
+        <FilterBar
+          isLoading={isLoading}
+          lastUpdated={lastUpdated}
+          nextRefreshIn={nextRefreshIn}
+          isAutoRefreshing={isAutoRefreshing}
+        />
+      )}
       {mapLoaded && <StarToggle onToggle={handleStarToggle} />}
+      {mapLoaded && (
+        <WatchlistWidget
+          geoJson={geoJson}
+          onSelectCountry={(iso, name, score) => {
+            selectCountry(iso, name, score);
+            mapRef.current?.easeTo({ padding: { right: PANEL_WIDTH }, duration: 250 });
+            mapRef.current?.scrollZoom.enable();
+          }}
+        />
+      )}
     </div>
   );
 }

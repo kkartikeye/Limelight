@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import ArticleCard from "./article-card";
 import { useArticles } from "@/lib/hooks/use-articles";
 import { useMapStore } from "@/lib/stores/map-store";
+import { useWatchlistStore } from "@/lib/stores/watchlist-store";
 
 interface StoryPanelProps {
   countryCode: string;
@@ -26,6 +27,8 @@ export default function StoryPanel({
   onClose,
 }: StoryPanelProps) {
   const { filters } = useMapStore();
+  const { toggleWatch, isWatched } = useWatchlistStore();
+  const watched = isWatched(countryCode);
   const { articles, loading, isLive } = useArticles(
     countryCode,
     filters.timeWindow,
@@ -77,15 +80,40 @@ export default function StoryPanel({
             )}
           </div>
         </div>
-        <button
-          onClick={onClose}
-          aria-label="Close panel"
-          className="ml-4 flex-shrink-0 rounded p-1 text-gray-400 transition-colors hover:bg-white/10 hover:text-white"
-        >
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z" />
-          </svg>
-        </button>
+        <div className="ml-4 flex flex-shrink-0 items-center gap-1">
+          {/* Watch toggle */}
+          <button
+            onClick={() => toggleWatch(countryCode)}
+            aria-label={watched ? "Remove from watchlist" : "Add to watchlist"}
+            title={watched ? "Remove from watchlist" : "Watch this country"}
+            className={`rounded p-1 transition-colors ${
+              watched
+                ? "text-amber-400 hover:bg-amber-400/10"
+                : "text-gray-500 hover:bg-white/10 hover:text-amber-400"
+            }`}
+          >
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 16 16"
+              fill={watched ? "currentColor" : "none"}
+              stroke="currentColor"
+              strokeWidth={watched ? "0" : "1.5"}
+            >
+              <path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.751.751 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Z" />
+            </svg>
+          </button>
+          {/* Close */}
+          <button
+            onClick={onClose}
+            aria-label="Close panel"
+            className="rounded p-1 text-gray-400 transition-colors hover:bg-white/10 hover:text-white"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* Article list */}

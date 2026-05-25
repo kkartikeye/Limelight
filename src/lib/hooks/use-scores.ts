@@ -1,9 +1,11 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import type { FeatureCollection, Geometry } from "geojson";
 import { mergeGeoJsonWithScores } from "@/lib/mock/score-utils";
 import { mockScores } from "@/lib/mock/mock-scores";
 import { useMapStore, ALL_CATEGORIES } from "@/lib/stores/map-store";
 import type { CountryScore, TopCategory } from "@/lib/types/scores";
+
+const REFRESH_INTERVAL_S = 90;
 
 // Fallback variance for mock data when the API has no scores yet
 function applyFilterVariance(score: number, timeWindow: string, catCount: number): number {
@@ -26,6 +28,8 @@ export interface ScoresResult {
   geoJson: FeatureCollection<Geometry> | null;
   isLoading: boolean;
   lastUpdated: Date | null;
+  nextRefreshIn: number;      // seconds until next auto-refresh
+  isAutoRefreshing: boolean;  // false when zero categories selected
 }
 
 export function useScores(): ScoresResult {
@@ -33,18 +37,38 @@ export function useScores(): ScoresResult {
   const [apiScores, setApiScores] = useState<ApiScores | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [nextRefreshIn, setNextRefreshIn] = useState(REFRESH_INTERVAL_S);
+  // fetchTrigger increments when the tab comes back into view and data is overdue
+  const [fetchTrigger, setFetchTrigger] = useState(0);
   const { filters } = useMapStore();
 
-  // Load GeoJSON once
+  // Refs for things that shouldn't re-run effects
+  const lastUpdatedStrRef = useRef<string | null>(null);
+  const nextRefreshAtRef = useRef<number>(Date.now() + REFRESH_INTERVAL_S * 1000);
+
+  // ─── Load GeoJSON once ─────────────────────────────────────────────────────
   useEffect(() => {
     fetch("/data/countries.geojson.json")
       .then((res) => res.json())
       .then((data: FeatureCollection<Geometry>) => setRawGeoJson(data));
   }, []);
 
-  // Poll /api/heatmap every 5 minutes; re-fetch immediately when filters change.
+  // ─── Page Visibility: resume + immediate fetch if overdue ──────────────────
   useEffect(() => {
-    // Zero-categories: skip API entirely — return dimmed GeoJSON via useMemo
+    const handler = () => {
+      if (
+        document.visibilityState === "visible" &&
+        Date.now() >= nextRefreshAtRef.current
+      ) {
+        setFetchTrigger((t) => t + 1);
+      }
+    };
+    document.addEventListener("visibilitychange", handler);
+    return () => document.removeEventListener("visibilitychange", handler);
+  }, []);
+
+  // ─── Main fetch + 90s interval ─────────────────────────────────────────────
+  useEffect(() => {
     if (filters.categories.length === 0) {
       setApiScores(null);
       setIsLoading(false);
@@ -59,40 +83,70 @@ export function useScores(): ScoresResult {
         ? `&categories=${filters.categories.join(",")}`
         : "";
 
-    async function fetchScores() {
+    async function doFetch() {
+      if (!active) return;
+      setIsLoading(true);
       try {
         const res = await fetch(
           `/api/heatmap?window=${filters.timeWindow}${catParam}&_=${Date.now()}`
         );
-        if (!res.ok) return;
+        if (!res.ok || !active) return;
         const data = (await res.json()) as HeatmapResponse;
         if (!active) return;
 
         if (data.scores && Object.keys(data.scores).length > 0) {
-          setApiScores(data.scores);
-          if (data.lastUpdated) setLastUpdated(new Date(data.lastUpdated));
+          // Only update state when the server has fresher data
+          if (data.lastUpdated !== lastUpdatedStrRef.current) {
+            lastUpdatedStrRef.current = data.lastUpdated;
+            setApiScores(data.scores);
+            if (data.lastUpdated) setLastUpdated(new Date(data.lastUpdated));
+          }
         } else {
-          setApiScores(null); // empty → useMemo falls back to mock
+          setApiScores(null);
         }
       } catch {
         // Network error — keep existing scores
       } finally {
         if (active) setIsLoading(false);
       }
+      // Reset countdown after every fetch attempt
+      nextRefreshAtRef.current = Date.now() + REFRESH_INTERVAL_S * 1000;
     }
 
-    fetchScores();
-    const interval = setInterval(fetchScores, 5 * 60_000);
+    doFetch();
+
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        doFetch();
+      } else {
+        // Tab hidden — mark as overdue so the next visibilitychange triggers immediately
+        nextRefreshAtRef.current = Date.now();
+      }
+    }, REFRESH_INTERVAL_S * 1000);
+
     return () => {
       active = false;
       clearInterval(interval);
     };
-  }, [filters.timeWindow, filters.categories]); // re-fetch on filter change
+    // fetchTrigger in deps: re-runs the effect (and fetches immediately) when
+    // the tab becomes visible after the interval was skipped
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.timeWindow, filters.categories, fetchTrigger]);
 
+  // ─── 1-second countdown ticker ─────────────────────────────────────────────
+  useEffect(() => {
+    const ticker = setInterval(() => {
+      setNextRefreshIn(
+        Math.max(0, Math.round((nextRefreshAtRef.current - Date.now()) / 1000))
+      );
+    }, 1000);
+    return () => clearInterval(ticker);
+  }, []);
+
+  // ─── Merge GeoJSON with scores ─────────────────────────────────────────────
   const geoJson = useMemo(() => {
     if (!rawGeoJson) return null;
 
-    // Zero categories → dim the whole map (all scores = 0)
     if (filters.categories.length === 0) {
       return mergeGeoJsonWithScores(rawGeoJson, []);
     }
@@ -125,5 +179,7 @@ export function useScores(): ScoresResult {
     return mergeGeoJsonWithScores(rawGeoJson, scores);
   }, [rawGeoJson, apiScores, filters]);
 
-  return { geoJson, isLoading, lastUpdated };
+  const isAutoRefreshing = filters.categories.length > 0;
+
+  return { geoJson, isLoading, lastUpdated, nextRefreshIn, isAutoRefreshing };
 }

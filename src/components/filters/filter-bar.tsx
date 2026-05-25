@@ -32,9 +32,16 @@ function relativeTime(d: Date): string {
 interface FilterBarProps {
   isLoading?: boolean;
   lastUpdated?: Date | null;
+  nextRefreshIn?: number;
+  isAutoRefreshing?: boolean;
 }
 
-export default function FilterBar({ isLoading = false, lastUpdated = null }: FilterBarProps) {
+export default function FilterBar({
+  isLoading = false,
+  lastUpdated = null,
+  nextRefreshIn = 90,
+  isAutoRefreshing = false,
+}: FilterBarProps) {
   const { filters, setTimeWindow, toggleCategory } = useMapStore();
   const [showCategories, setShowCategories] = useState(false);
 
@@ -115,8 +122,8 @@ export default function FilterBar({ isLoading = false, lastUpdated = null }: Fil
           Filters
         </button>
 
-        {/* Status row: loading spinner or last-updated timestamp */}
-        {(isLoading || lastUpdated) && (
+        {/* Status row */}
+        {(isLoading || isAutoRefreshing || lastUpdated) && (
           <>
             <div className="h-4 w-px bg-white/10" />
             {isLoading ? (
@@ -132,6 +139,14 @@ export default function FilterBar({ isLoading = false, lastUpdated = null }: Fil
                   <path d="M12 2a10 10 0 0 1 10 10" />
                 </svg>
                 Updating…
+              </span>
+            ) : isAutoRefreshing ? (
+              <span className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+                <span className="text-emerald-500/80">Live</span>
+                {nextRefreshIn > 0 && (
+                  <span className="text-gray-600">· {nextRefreshIn}s</span>
+                )}
               </span>
             ) : lastUpdated ? (
               <span className="text-[10px] text-gray-500">
