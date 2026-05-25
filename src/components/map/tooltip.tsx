@@ -101,7 +101,7 @@ export default function Tooltip({
               ) : <span />}
               {articleCount > 0 && (
                 <span className="text-[10px] text-gray-600 tabular-nums flex-shrink-0">
-                  {articleCount.toLocaleString()} art.
+                  {articleCount.toLocaleString()} articles
                 </span>
               )}
             </div>
