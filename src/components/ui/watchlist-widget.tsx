@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import type { FeatureCollection, Geometry } from "geojson";
 import { useWatchlistStore } from "@/lib/stores/watchlist-store";
+import type { ScoresMap } from "@/lib/hooks/use-scores";
 
 interface WatchlistWidgetProps {
-  geoJson: FeatureCollection<Geometry> | null;
+  scores: ScoresMap | null;
   onSelectCountry: (iso: string, name: string, score: number) => void;
 }
 
@@ -16,23 +16,16 @@ function scoreBarColor(score: number): string {
   return "#4b5563";
 }
 
-export default function WatchlistWidget({ geoJson, onSelectCountry }: WatchlistWidgetProps) {
+export default function WatchlistWidget({ scores, onSelectCountry }: WatchlistWidgetProps) {
   const [expanded, setExpanded] = useState(false);
   const { watched, toggleWatch } = useWatchlistStore();
 
-  // Build score lookup from current GeoJSON
-  const scoreMap = new Map<string, { name: string; score: number }>();
-  if (geoJson) {
-    for (const feature of geoJson.features) {
-      const p = feature.properties as { ISO_A3?: string; ADMIN?: string; score?: number } | null;
-      if (p?.ISO_A3) {
-        scoreMap.set(p.ISO_A3, { name: p.ADMIN ?? p.ISO_A3, score: p.score ?? 0 });
-      }
-    }
-  }
-
   const entries = watched
-    .map((iso) => ({ iso, ...(scoreMap.get(iso) ?? { name: iso, score: 0 }) }))
+    .map((w) => ({
+      iso: w.iso,
+      name: w.name,
+      score: scores?.[w.iso]?.score ?? 0,
+    }))
     .sort((a, b) => b.score - a.score);
 
   return (
@@ -88,7 +81,7 @@ export default function WatchlistWidget({ geoJson, onSelectCountry }: WatchlistW
                     aria-label={`Remove ${name} from watchlist`}
                     onClick={(e) => {
                       e.stopPropagation();
-                      toggleWatch(iso);
+                      toggleWatch(iso, name);
                     }}
                     className="flex-shrink-0 rounded p-0.5 text-gray-700 opacity-0 transition-all hover:text-gray-400 group-hover:opacity-100"
                   >
@@ -126,7 +119,7 @@ export default function WatchlistWidget({ geoJson, onSelectCountry }: WatchlistW
           <path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.751.751 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Z" />
         </svg>
         {watched.length > 0 && (
-          <span className={`font-semibold tabular-nums ${watched.length > 0 ? "text-amber-400" : ""}`}>
+          <span className="font-semibold tabular-nums text-amber-400">
             {watched.length}
           </span>
         )}

@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from "react";
-import type { FeatureCollection, Geometry } from "geojson";
-import { mergeGeoJsonWithScores } from "@/lib/mock/score-utils";
 import { mockScores } from "@/lib/mock/mock-scores";
 import { useMapStore, ALL_CATEGORIES } from "@/lib/stores/map-store";
-import type { CountryScore, TopCategory } from "@/lib/types/scores";
+import type { TopCategory } from "@/lib/types/scores";
 
 const REFRESH_INTERVAL_S = 90;
 
@@ -17,43 +15,50 @@ function applyFilterVariance(score: number, timeWindow: string, catCount: number
   return Math.min(100, Math.max(0, Math.round(raw)));
 }
 
-type ApiScores = Record<string, { score: number; articleCount: number; topCategory: string | null }>;
+export interface ScoreEntry {
+  score: number;
+  articleCount: number;
+  topCategory: TopCategory | null;
+}
+
+/** ISO_A3 → score data. The map's heat-fill reads this directly via feature-state. */
+export type ScoresMap = Record<string, ScoreEntry>;
 
 interface HeatmapResponse {
-  scores: ApiScores;
+  scores: Record<string, { score: number; articleCount: number; topCategory: string | null }>;
   lastUpdated: string | null;
 }
 
 export interface ScoresResult {
-  geoJson: FeatureCollection<Geometry> | null;
+  scores: ScoresMap | null;
   isLoading: boolean;
   lastUpdated: Date | null;
-  nextRefreshIn: number;      // seconds until next auto-refresh
-  isAutoRefreshing: boolean;  // false when zero categories selected
+  nextRefreshIn: number;
+  isAutoRefreshing: boolean;
+}
+
+const VALID_CATEGORIES = new Set<TopCategory>([
+  "Conflict", "Politics", "Economics", "Technology",
+  "Humanitarian", "Environment", "Sports", "Entertainment",
+]);
+
+function normaliseTopCategory(raw: string | null): TopCategory | null {
+  if (!raw) return null;
+  return VALID_CATEGORIES.has(raw as TopCategory) ? (raw as TopCategory) : "Politics";
 }
 
 export function useScores(): ScoresResult {
-  const [rawGeoJson, setRawGeoJson] = useState<FeatureCollection<Geometry> | null>(null);
-  const [apiScores, setApiScores] = useState<ApiScores | null>(null);
+  const [apiScores, setApiScores] = useState<HeatmapResponse["scores"] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [nextRefreshIn, setNextRefreshIn] = useState(REFRESH_INTERVAL_S);
-  // fetchTrigger increments when the tab comes back into view and data is overdue
   const [fetchTrigger, setFetchTrigger] = useState(0);
   const { filters } = useMapStore();
 
-  // Refs for things that shouldn't re-run effects
   const lastUpdatedStrRef = useRef<string | null>(null);
   const nextRefreshAtRef = useRef<number>(Date.now() + REFRESH_INTERVAL_S * 1000);
 
-  // ─── Load GeoJSON once ─────────────────────────────────────────────────────
-  useEffect(() => {
-    fetch("/data/countries.geojson.json")
-      .then((res) => res.json())
-      .then((data: FeatureCollection<Geometry>) => setRawGeoJson(data));
-  }, []);
-
-  // ─── Page Visibility: resume + immediate fetch if overdue ──────────────────
+  // ── Page Visibility: re-fetch immediately on resume if overdue ──────────────
   useEffect(() => {
     const handler = () => {
       if (
@@ -67,7 +72,7 @@ export function useScores(): ScoresResult {
     return () => document.removeEventListener("visibilitychange", handler);
   }, []);
 
-  // ─── Main fetch + 90s interval ─────────────────────────────────────────────
+  // ── Main fetch + 90s interval ───────────────────────────────────────────────
   useEffect(() => {
     if (filters.categories.length === 0) {
       setApiScores(null);
@@ -95,7 +100,6 @@ export function useScores(): ScoresResult {
         if (!active) return;
 
         if (data.scores && Object.keys(data.scores).length > 0) {
-          // Only update state when the server has fresher data
           if (data.lastUpdated !== lastUpdatedStrRef.current) {
             lastUpdatedStrRef.current = data.lastUpdated;
             setApiScores(data.scores);
@@ -104,12 +108,10 @@ export function useScores(): ScoresResult {
         } else {
           setApiScores(null);
         }
-      } catch {
-        // Network error — keep existing scores
-      } finally {
+      } catch { /* keep existing scores */ }
+      finally {
         if (active) setIsLoading(false);
       }
-      // Reset countdown after every fetch attempt
       nextRefreshAtRef.current = Date.now() + REFRESH_INTERVAL_S * 1000;
     }
 
@@ -119,7 +121,6 @@ export function useScores(): ScoresResult {
       if (document.visibilityState === "visible") {
         doFetch();
       } else {
-        // Tab hidden — mark as overdue so the next visibilitychange triggers immediately
         nextRefreshAtRef.current = Date.now();
       }
     }, REFRESH_INTERVAL_S * 1000);
@@ -128,12 +129,10 @@ export function useScores(): ScoresResult {
       active = false;
       clearInterval(interval);
     };
-    // fetchTrigger in deps: re-runs the effect (and fetches immediately) when
-    // the tab becomes visible after the interval was skipped
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.timeWindow, filters.categories, fetchTrigger]);
 
-  // ─── 1-second countdown ticker ─────────────────────────────────────────────
+  // ── 1-second countdown ticker ───────────────────────────────────────────────
   useEffect(() => {
     const ticker = setInterval(() => {
       setNextRefreshIn(
@@ -143,43 +142,35 @@ export function useScores(): ScoresResult {
     return () => clearInterval(ticker);
   }, []);
 
-  // ─── Merge GeoJSON with scores ─────────────────────────────────────────────
-  const geoJson = useMemo(() => {
-    if (!rawGeoJson) return null;
-
-    if (filters.categories.length === 0) {
-      return mergeGeoJsonWithScores(rawGeoJson, []);
-    }
-
-    const validCategories = new Set<TopCategory>([
-      "Conflict", "Politics", "Economics", "Technology",
-      "Humanitarian", "Environment", "Sports", "Entertainment",
-    ]);
-
-    let scores: CountryScore[];
+  // ── Build the final scores map (API → ScoresMap, with mock fallback) ────────
+  const scores = useMemo<ScoresMap | null>(() => {
+    if (filters.categories.length === 0) return {};
 
     if (apiScores && Object.keys(apiScores).length > 0) {
-      scores = Object.entries(apiScores).map(([code, val]) => {
-        const cat = val.topCategory as TopCategory;
-        return {
-          code,
-          name: code,
+      const out: ScoresMap = {};
+      for (const [iso, val] of Object.entries(apiScores)) {
+        out[iso] = {
           score: val.score,
           articleCount: val.articleCount,
-          topCategory: validCategories.has(cat) ? cat : ("Politics" as TopCategory),
+          topCategory: normaliseTopCategory(val.topCategory),
         };
-      });
-    } else {
-      scores = mockScores.map((s) => ({
-        ...s,
-        score: applyFilterVariance(s.score, filters.timeWindow, filters.categories.length),
-      }));
+      }
+      return out;
     }
 
-    return mergeGeoJsonWithScores(rawGeoJson, scores);
-  }, [rawGeoJson, apiScores, filters]);
+    // Mock fallback
+    const out: ScoresMap = {};
+    for (const s of mockScores) {
+      out[s.code] = {
+        score: applyFilterVariance(s.score, filters.timeWindow, filters.categories.length),
+        articleCount: s.articleCount,
+        topCategory: s.topCategory,
+      };
+    }
+    return out;
+  }, [apiScores, filters]);
 
   const isAutoRefreshing = filters.categories.length > 0;
 
-  return { geoJson, isLoading, lastUpdated, nextRefreshIn, isAutoRefreshing };
+  return { scores, isLoading, lastUpdated, nextRefreshIn, isAutoRefreshing };
 }

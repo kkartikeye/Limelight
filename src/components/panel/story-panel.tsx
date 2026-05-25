@@ -83,7 +83,7 @@ export default function StoryPanel({
         <div className="ml-4 flex flex-shrink-0 items-center gap-1">
           {/* Watch toggle */}
           <button
-            onClick={() => toggleWatch(countryCode)}
+            onClick={() => toggleWatch(countryCode, countryName)}
             aria-label={watched ? "Remove from watchlist" : "Add to watchlist"}
             title={watched ? "Remove from watchlist" : "Watch this country"}
             className={`rounded p-1 transition-colors ${

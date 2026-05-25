@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import HeatLayer from "./heat-layer";
 import PinLayer from "./pin-layer";
@@ -40,29 +40,22 @@ const FOG_STARS_OFF: Parameters<mapboxgl.Map["setFog"]>[0] = {
   "star-intensity": 0,
 };
 
-// Per-layer label styles — tuned to the dark globe + YlOrRd palette.
-// "country-label" uses Approach C: strong opaque halo over any fill color so
-// the basemap's MultiPolygon-aware centroid placement avoids duplicate labels.
 const LABEL_STYLES: Record<string, { color: string; haloColor: string; haloWidth: number }> = {
-  // Country names — warm parchment on opaque black halo; readable on any fill.
   "country-label": {
     color: "#f0e8d8",
     haloColor: "rgba(0,0,0,0.95)",
     haloWidth: 2.8,
   },
-  // Continent names — quiet chrome, visually demoted.
   "continent-label": {
     color: "#4e5565",
     haloColor: "rgba(0,0,0,0.7)",
     haloWidth: 1,
   },
-  // State / province names — secondary to country
   "state-label": {
     color: "#c8b89c",
     haloColor: "rgba(0,0,0,0.88)",
     haloWidth: 2,
   },
-  // Settlement hierarchy
   "settlement-label": {
     color: "#aaaaB4",
     haloColor: "rgba(0,0,0,0.85)",
@@ -73,13 +66,11 @@ const LABEL_STYLES: Record<string, { color: string; haloColor: string; haloWidth
     haloColor: "rgba(0,0,0,0.80)",
     haloWidth: 1.5,
   },
-  // Physical geography
   "natural-point-label": {
     color: "#9caa96",
     haloColor: "rgba(0,0,0,0.82)",
     haloWidth: 1.5,
   },
-  // Water: steel-blue tint, minimal halo
   "water-point-label": {
     color: "#8aaac0",
     haloColor: "rgba(0,0,0,0.5)",
@@ -96,6 +87,12 @@ interface HoverInfo {
   y: number;
 }
 
+// Mapbox country-boundaries-v1 feature properties
+interface CountryFeatureProps {
+  iso_3166_1_alpha_3?: string;
+  name_en?: string;
+}
+
 export default function MapView() {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
@@ -103,15 +100,19 @@ export default function MapView() {
   const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
 
-  // Lift scores state here so both HeatLayer and FilterBar can share it
-  const { geoJson, isLoading, lastUpdated, nextRefreshIn, isAutoRefreshing } = useScores();
+  const { scores, isLoading, lastUpdated, nextRefreshIn, isAutoRefreshing } = useScores();
   const { pinsGeoJson } = usePins();
+
+  // Stable ref so click/hover handlers (registered once) always see latest scores
+  const scoresRef = useRef(scores);
+  scoresRef.current = scores;
 
   const {
     isPanelOpen, selectedCountry, selectedCountryName, selectedCountryScore,
     selectCountry, clearSelection, showStars, toggleStars,
   } = useMapStore();
-  const { watched: watchedIsos } = useWatchlistStore();
+  const { watched } = useWatchlistStore();
+  const watchedIsos = useMemo(() => watched.map((w) => w.iso), [watched]);
 
   const closePanel = () => {
     clearSelection();
@@ -155,27 +156,32 @@ export default function MapView() {
         map.setPaintProperty(id, "text-halo-width", style.haloWidth);
       });
 
+      // ── Hover: read ISO from Mapbox feature, look up score from scoresRef ───
       map.on("mousemove", "heat-fill", (e) => {
         if (!e.features?.length) return;
-        const props = e.features[0].properties as {
-          ADMIN?: string;
-          ISO_A3?: string;
-          score?: number;
-          articleCount?: number;
-          topCategory?: string;
-        } | null;
+        const props = e.features[0].properties as CountryFeatureProps | null;
+        const iso = props?.iso_3166_1_alpha_3 ?? "";
+        const name = props?.name_en ?? "Unknown";
+
         map.getCanvas().style.cursor = "pointer";
-        // Highlight the hovered country's border
         if (map.getLayer("heat-hover-outline")) {
           map.setFilter("heat-hover-outline", [
-            "==", ["get", "ISO_A3"], props?.ISO_A3 ?? "",
+            "all",
+            ["==", ["geometry-type"], "Polygon"],
+            ["any",
+              ["==", "all", ["get", "worldview"]],
+              ["in", "US", ["get", "worldview"]],
+            ],
+            ["==", ["get", "iso_3166_1_alpha_3"], iso],
           ]);
         }
+
+        const scoreEntry = scoresRef.current?.[iso];
         setHoverInfo({
-          name: props?.ADMIN ?? "Unknown",
-          score: props?.score ?? 0,
-          articleCount: props?.articleCount ?? 0,
-          topCategory: (props?.topCategory as TopCategory) ?? null,
+          name,
+          score: scoreEntry?.score ?? 0,
+          articleCount: scoreEntry?.articleCount ?? 0,
+          topCategory: scoreEntry?.topCategory ?? null,
           x: e.point.x,
           y: e.point.y,
         });
@@ -183,19 +189,28 @@ export default function MapView() {
 
       map.on("mouseleave", "heat-fill", () => {
         map.getCanvas().style.cursor = "";
-        // Clear hover highlight
         if (map.getLayer("heat-hover-outline")) {
-          map.setFilter("heat-hover-outline", ["==", ["get", "ISO_A3"], ""]);
+          map.setFilter("heat-hover-outline", [
+            "all",
+            ["==", ["geometry-type"], "Polygon"],
+            ["any",
+              ["==", "all", ["get", "worldview"]],
+              ["in", "US", ["get", "worldview"]],
+            ],
+            ["==", ["get", "iso_3166_1_alpha_3"], ""],
+          ]);
         }
         setHoverInfo(null);
       });
 
       map.on("click", "heat-fill", (e) => {
         if (!e.features?.length) return;
-        const props = e.features[0].properties as {
-          ISO_A3?: string; ADMIN?: string; score?: number;
-        } | null;
-        selectCountry(props?.ISO_A3 ?? "", props?.ADMIN ?? "Unknown", props?.score ?? 0);
+        const props = e.features[0].properties as CountryFeatureProps | null;
+        const iso = props?.iso_3166_1_alpha_3 ?? "";
+        const name = props?.name_en ?? "Unknown";
+        const score = scoresRef.current?.[iso]?.score ?? 0;
+
+        selectCountry(iso, name, score);
         setHoverInfo(null);
         map.easeTo({ padding: { right: PANEL_WIDTH }, duration: 250 });
         map.scrollZoom.enable();
@@ -230,7 +245,7 @@ export default function MapView() {
       document.removeEventListener("click", handleDocumentClick);
       map.remove();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -241,7 +256,7 @@ export default function MapView() {
         <>
           <HeatLayer
             map={mapRef.current}
-            geoJson={geoJson}
+            scores={scores}
             isLoading={isLoading}
             selectedIso={selectedCountry}
             watchedIsos={watchedIsos}
@@ -279,7 +294,7 @@ export default function MapView() {
       {mapLoaded && <StarToggle onToggle={handleStarToggle} />}
       {mapLoaded && (
         <WatchlistWidget
-          geoJson={geoJson}
+          scores={scores}
           onSelectCountry={(iso, name, score) => {
             selectCountry(iso, name, score);
             mapRef.current?.easeTo({ padding: { right: PANEL_WIDTH }, duration: 250 });
