@@ -12,7 +12,7 @@ interface TooltipProps {
   containerWidth: number;
 }
 
-// YlOrRd stops mirroring the fill expression
+// Full YlOrRd scale — mirrors the heat fill exactly
 function scoreToColor(score: number): string {
   if (score >= 87) return "#bd0026";
   if (score >= 75) return "#e31a1c";
@@ -24,67 +24,88 @@ function scoreToColor(score: number): string {
   return "#ffffcc";
 }
 
-const CATEGORY_DOT: Record<TopCategory, string> = {
-  Conflict:      "bg-red-500",
-  Humanitarian:  "bg-orange-400",
-  Politics:      "bg-blue-400",
-  Economics:     "bg-emerald-400",
-  Technology:    "bg-violet-400",
-  Environment:   "bg-teal-400",
-  Sports:        "bg-yellow-400",
-  Entertainment: "bg-pink-400",
+const CATEGORY_COLOR: Record<TopCategory, string> = {
+  Conflict:      "#f87171",
+  Humanitarian:  "#fb923c",
+  Politics:      "#60a5fa",
+  Economics:     "#34d399",
+  Technology:    "#a78bfa",
+  Environment:   "#2dd4bf",
+  Sports:        "#fbbf24",
+  Entertainment: "#f472b6",
 };
 
+const TOOLTIP_W = 178;
+
 export default function Tooltip({
-  name,
-  score,
-  articleCount,
-  topCategory,
-  x,
-  y,
-  containerWidth,
+  name, score, articleCount, topCategory, x, y, containerWidth,
 }: TooltipProps) {
-  const TOOLTIP_WIDTH = 192;
-  const flipped = x > containerWidth - TOOLTIP_WIDTH - 16;
-  const left = flipped ? x - TOOLTIP_WIDTH - 12 : x + 12;
+  const flipped = x > containerWidth - TOOLTIP_W - 20;
+  const left = flipped ? x - TOOLTIP_W - 12 : x + 14;
+  const accent = scoreToColor(score);
 
   return (
     <div
-      className="pointer-events-none absolute z-10 rounded-md bg-gray-900/92 px-3 py-2.5 text-white shadow-lg backdrop-blur-sm"
+      className="pointer-events-none absolute z-10"
       style={{
         left,
-        top: y - 8,
-        width: TOOLTIP_WIDTH,
+        top: y - 6,
+        width: TOOLTIP_W,
+        animation: "tooltip-fade-in 120ms ease-out",
         willChange: "transform",
-        animation: "tooltip-fade-in 150ms ease",
       }}
     >
-      <p className="truncate text-sm font-semibold">{name}</p>
+      {/* Card */}
+      <div
+        className="rounded-lg overflow-hidden shadow-2xl"
+        style={{
+          background: "rgba(8,10,16,0.97)",
+          border: "1px solid rgba(255,255,255,0.07)",
+          backdropFilter: "blur(8px)",
+        }}
+      >
+        {/* Accent stripe — mirrors the country's heat color */}
+        <div style={{ height: 3, background: accent }} />
 
-      {/* Score bar */}
-      <div className="mt-1.5 flex items-center gap-2">
-        <div
-          className="h-2 rounded-sm"
-          style={{
-            width: `${Math.max(4, (score / 100) * 100)}px`,
-            maxWidth: "108px",
-            backgroundColor: scoreToColor(score),
-          }}
-        />
-        <span className="text-xs tabular-nums text-gray-300">{score}</span>
-      </div>
+        <div className="px-3 pt-2.5 pb-3">
+          {/* Country name */}
+          <p className="truncate text-[13px] font-semibold text-white leading-none mb-2">
+            {name}
+          </p>
 
-      {/* Article count + top category */}
-      <div className="mt-1.5 flex items-center justify-between gap-2">
-        <span className="text-xs text-gray-400">
-          {articleCount.toLocaleString()} article{articleCount !== 1 ? "s" : ""}
-        </span>
-        {topCategory && (
-          <span className="flex items-center gap-1 text-[10px] text-gray-400">
-            <span className={`h-1.5 w-1.5 rounded-full ${CATEGORY_DOT[topCategory]}`} />
-            {topCategory}
-          </span>
-        )}
+          {/* Score — the hero number */}
+          <div className="flex items-baseline gap-1.5 mb-2">
+            <span
+              className="text-2xl font-bold tabular-nums leading-none"
+              style={{ color: accent }}
+            >
+              {score}
+            </span>
+            <span className="text-[9px] font-medium tracking-widest text-gray-500 uppercase">
+              intensity
+            </span>
+          </div>
+
+          {/* Divider */}
+          <div className="h-px bg-white/[0.06] mb-2" />
+
+          {/* Meta row */}
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] text-gray-500 tabular-nums">
+              {articleCount > 0
+                ? `${articleCount.toLocaleString()} article${articleCount !== 1 ? "s" : ""}`
+                : "no data"}
+            </span>
+            {topCategory && (
+              <span
+                className="text-[10px] font-medium"
+                style={{ color: CATEGORY_COLOR[topCategory] }}
+              >
+                {topCategory}
+              </span>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

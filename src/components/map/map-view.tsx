@@ -36,18 +36,23 @@ const FOG_STARS_OFF: Parameters<mapboxgl.Map["setFog"]>[0] = {
   "star-intensity": 0,
 };
 
-// Per-layer label styles — tuned to the dark globe + YlOrRd palette
+// Per-layer label styles — tuned to the dark globe + YlOrRd palette.
+// "country-label" is intentionally absent: it is hidden on map load and
+// replaced by HeatLayer's score-adaptive "country-label-custom" symbol layer.
 const LABEL_STYLES: Record<string, { color: string; haloColor: string; haloWidth: number }> = {
-  "country-label": {
-    color: "#f0e0c8",
-    haloColor: "rgba(0,0,0,0.92)",
-    haloWidth: 2.5,
+  // Continent names — quiet chrome, not data. Visually demoted.
+  "continent-label": {
+    color: "#5a6070",
+    haloColor: "rgba(0,0,0,0.7)",
+    haloWidth: 1,
   },
+  // State / province names — secondary to country
   "state-label": {
     color: "#d4c4b0",
     haloColor: "rgba(0,0,0,0.88)",
     haloWidth: 2,
   },
+  // Settlement hierarchy
   "settlement-label": {
     color: "#b8b8c0",
     haloColor: "rgba(0,0,0,0.85)",
@@ -58,15 +63,17 @@ const LABEL_STYLES: Record<string, { color: string; haloColor: string; haloWidth
     haloColor: "rgba(0,0,0,0.80)",
     haloWidth: 1.5,
   },
+  // Physical geography
   "natural-point-label": {
     color: "#a8b8a0",
     haloColor: "rgba(0,0,0,0.82)",
     haloWidth: 1.5,
   },
+  // Water: steel-blue, minimal halo (sits on dark space — halo adds fuzz)
   "water-point-label": {
-    color: "#7a9ab0",
-    haloColor: "rgba(0,0,0,0.80)",
-    haloWidth: 1.5,
+    color: "#9ab4c8",
+    haloColor: "rgba(0,0,0,0.5)",
+    haloWidth: 1,
   },
 };
 
@@ -128,6 +135,13 @@ export default function MapView() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       map.setProjection({ name: "globe" } as any);
       map.setFog(FOG_STARS_ON);
+
+      // Hide the basemap country-label immediately — HeatLayer replaces it with
+      // a score-adaptive custom symbol layer. Done here (not in HeatLayer) so
+      // there's no visible flash of the old labels between map load and first render.
+      if (map.getLayer("country-label")) {
+        map.setLayoutProperty("country-label", "visibility", "none");
+      }
 
       Object.entries(LABEL_STYLES).forEach(([id, style]) => {
         if (!map.getLayer(id)) return;
