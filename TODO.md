@@ -146,3 +146,4 @@ Create these shared modules:
 - Re-enable the globe / flat-earth `ViewToggle` (`view-toggle.tsx` and `map-store` projection state are already there waiting)
 - Search functionality behind the mobile search icon
 - Real category iconography
+- **Direct-to-source headline links**: decide whether StoryPanel headlines should skip the internal reader and open the publisher URL directly in a new tab (`<a href={article.url} target="_blank">`). Current flow: headline → `/article/[id]` reader → "Read full article" CTA. The reader adds future value (related articles, save/share, country map panel) but adds a click. Revisit once the reader page has more content.
