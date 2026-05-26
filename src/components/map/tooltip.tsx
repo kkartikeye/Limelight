@@ -1,6 +1,6 @@
 "use client";
 
-import { HEAT_RAMP, CATEGORY_COLORS } from "@/lib/design-tokens";
+import { HEAT_RAMP, DL } from "@/lib/design-tokens";
 import type { TopCategory } from "@/lib/types/scores";
 
 interface TooltipProps {
@@ -13,7 +13,7 @@ interface TooltipProps {
   containerWidth: number;
 }
 
-/** Derive accent color from the shared ramp — stays in sync with HeatLayer automatically. */
+/** Derive accent color from the shared Daylight ramp. */
 function scoreToColor(score: number): string {
   for (let i = HEAT_RAMP.length - 1; i >= 0; i--) {
     if (score >= HEAT_RAMP[i][0]) return HEAT_RAMP[i][1];
@@ -21,79 +21,86 @@ function scoreToColor(score: number): string {
   return HEAT_RAMP[0][1];
 }
 
-const TOOLTIP_W = 172;
+const TOOLTIP_W = 220;
 
 export default function Tooltip({
   name, score, articleCount, topCategory, x, y, containerWidth,
 }: TooltipProps) {
   const flipped = x > containerWidth - TOOLTIP_W - 20;
-  const left = flipped ? x - TOOLTIP_W - 12 : x + 14;
+  const left = flipped ? x - TOOLTIP_W - 14 : x + 16;
   const accent = scoreToColor(score);
 
   return (
     <div
-      className="pointer-events-none absolute z-10"
+      className="pointer-events-none absolute z-20"
       style={{
         left,
-        top: y - 6,
+        top: y - 8,
         width: TOOLTIP_W,
         animation: "tooltip-fade-in 120ms ease-out",
-        willChange: "transform",
+        willChange: "transform, opacity",
       }}
     >
       <div
-        className="rounded-lg overflow-hidden shadow-2xl"
         style={{
-          background: "rgba(8,10,16,0.97)",
-          border: "1px solid rgba(255,255,255,0.07)",
-          backdropFilter: "blur(8px)",
+          background: "rgba(255,255,255,0.94)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+          borderRadius: 14,
+          padding: 14,
+          boxShadow: "0 20px 40px rgba(24,22,19,0.15)",
+          border: `1px solid ${DL.RULE}`,
         }}
       >
-        {/* Heat-color accent stripe */}
-        <div style={{ height: 3, background: accent }} />
-
-        <div className="px-3 pt-2.5 pb-3">
-          {/* Country name — primary */}
-          <p className="truncate text-sm font-semibold text-white leading-snug">
+        {/* Country name + ISO */}
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
+          <span style={{ fontFamily: DL.DISPLAY, fontSize: 20, fontWeight: 500, letterSpacing: -0.3, color: DL.INK }}>
             {name}
-          </p>
-
-          {/* Score bar — communicates intensity visually, not numerically */}
-          <div className="mt-2 flex items-center gap-2">
-            <div className="flex-1 h-1.5 rounded-full bg-white/[0.08]">
-              <div
-                className="h-full rounded-full"
-                style={{
-                  width: `${Math.max(4, score)}%`,
-                  background: accent,
-                  opacity: 0.9,
-                }}
-              />
-            </div>
-            <span className="text-[10px] tabular-nums text-gray-500 w-5 text-right">
-              {score}
-            </span>
-          </div>
-
-          {/* Category + article count */}
-          {(topCategory || articleCount > 0) && (
-            <div className="mt-2 flex items-center justify-between gap-2">
-              {topCategory ? (
-                <span
-                  className="text-[11px] font-medium truncate"
-                  style={{ color: CATEGORY_COLORS[topCategory] }}
-                >
-                  {topCategory}
-                </span>
-              ) : <span />}
-              {articleCount > 0 && (
-                <span className="text-[10px] text-gray-600 tabular-nums flex-shrink-0">
-                  {articleCount.toLocaleString()} articles
-                </span>
-              )}
-            </div>
-          )}
+          </span>
+          <span style={{ fontFamily: DL.MONO, fontSize: 10, color: DL.DIM }}>
+            {/* ISO shown via score rank position */}
+          </span>
         </div>
+
+        {/* Score bar */}
+        <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ flex: 1, height: 4, background: "#f0e8d8", borderRadius: 999 }}>
+            <div style={{
+              width: `${Math.max(4, score)}%`,
+              height: "100%",
+              borderRadius: 999,
+              background: `linear-gradient(90deg, ${HEAT_RAMP[2][1]}, ${accent})`,
+            }} />
+          </div>
+          <span style={{ fontFamily: DL.MONO, fontSize: 11, fontWeight: 600, color: DL.INK, minWidth: 20, textAlign: "right" }}>
+            {score}
+          </span>
+        </div>
+
+        {/* Category + article count */}
+        {(topCategory || articleCount > 0) && (
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8, fontSize: 11 }}>
+            {topCategory ? (
+              <span style={{ color: DL.CORAL, fontWeight: 600, fontFamily: DL.SANS }}>
+                {topCategory}
+              </span>
+            ) : <span />}
+            {articleCount > 0 && (
+              <span style={{ color: DL.DIM, fontFamily: DL.MONO, fontSize: 10 }}>
+                {articleCount.toLocaleString()} articles
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Dashed leader line */}
+        {!flipped && (
+          <svg
+            style={{ position: "absolute", left: -22, top: 18, width: 22, height: 2, overflow: "visible", pointerEvents: "none" }}
+          >
+            <line x1="0" y1="1" x2="22" y2="1" stroke={DL.CORAL} strokeWidth="1" strokeDasharray="2 2" />
+          </svg>
+        )}
       </div>
     </div>
   );

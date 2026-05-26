@@ -1,90 +1,121 @@
 /**
- * design-tokens.ts
+ * design-tokens.ts — Daylight edition
  * ─────────────────────────────────────────────────────────────────────────────
- * Single source of truth for every visual constant used across the map and UI.
- * To restyle the application, edit the values here — nowhere else.
+ * Single source of truth for every visual constant. Swapping the Daylight
+ * palette means editing this file only.
  *
  * Consumers:
- *   - heat-layer.tsx  (Mapbox expressions built from these tokens)
- *   - pin-layer.tsx   (popup HTML inline styles)
- *   - globals.css     (Mapbox popup CSS overrides reference the same palette)
+ *   - heat-layer.tsx   (Mapbox expressions)
+ *   - tooltip.tsx      (hover card)
+ *   - pin-layer.tsx    (popup)
+ *   - heat-legend.tsx  (gradient strip)
+ *   - All UI components via Tailwind classes (bg-paper, text-coral, etc.)
  */
 
-// ─── Heat-fill colour ramp (YlOrRd ColorBrewer) ──────────────────────────────
-// Swap this array to change the heatmap palette globally.
-// Format: [score_0–100, hex_color]
+// ─── Daylight color tokens ─────────────────────────────────────────────────────
+export const DL = {
+  // Surfaces
+  PAPER:    "#f6f3ec",
+  PAPER_2:  "#efeadf",
+  CARD:     "#ffffff",
+
+  // Text
+  INK:      "#181613",
+  INK_2:    "#3a3025",
+  DIM:      "#7a7568",
+  DIM_2:    "#aaa492",
+
+  // Hairlines
+  RULE:     "rgba(24,22,19,0.10)",
+  RULE_2:   "rgba(24,22,19,0.05)",
+
+  // Accent — coral only. Used sparingly for state, live cues, and intensity.
+  CORAL:    "#e0573c",
+  CORAL_50: "#fff0ea",  // pill background
+  CORAL_BD: "#fac7b8",  // pill border
+
+  // Live indicator
+  LIVE:     "#2a8a5e",
+
+  // Globe shading
+  GLOBE_HIGHLIGHT: "#fbf6e9",
+  GLOBE_SHADOW:    "#dccfb1",
+  GLOBE_ATM:       "#f0936b",
+
+  // Typography stacks (CSS font-family strings)
+  DISPLAY: '"Newsreader", "Source Serif 4", Georgia, serif',
+  SANS:    '"Manrope", "IBM Plex Sans", system-ui, sans-serif',
+  MONO:    '"IBM Plex Mono", ui-monospace, monospace',
+} as const;
+
+// ─── Heat ramp — cream → peach → coral (7 stops, no crimson) ──────────────────
+// Format: [score_0–100, hex]. Used in FILL_COLOR_EXPR and HeatLegend gradient.
 export const HEAT_RAMP: ReadonlyArray<readonly [number, string]> = [
-  [0,   "#ffffcc"],
-  [12,  "#ffeda0"],
-  [25,  "#fed976"],
-  [37,  "#feb24c"],
-  [50,  "#fd8d3c"],
-  [62,  "#fc4e2a"],
-  [75,  "#e31a1c"],
-  [87,  "#bd0026"],
-  [100, "#800026"],
+  [0,   "#e8e2d0"],   // warm gray  (no-data)
+  [5,   "#fbe6cd"],   // palest cream
+  [20,  "#fad9b3"],   // sand
+  [40,  "#f6bc8a"],   // warm peach
+  [60,  "#f0936b"],   // apricot
+  [80,  "#e26a4f"],   // terracotta
+  [100, "#c93e2a"],   // deep coral
 ] as const;
 
-// ─── Map layer tokens ─────────────────────────────────────────────────────────
+// ─── Map layer tokens ──────────────────────────────────────────────────────────
 export const MapTokens = {
 
-  // ── Country fill ────────────────────────────────────────────────────────────
+  // ── Country fill ─────────────────────────────────────────────────────────────
   fill: {
-    noData:         "rgba(255,255,255,0.04)",  // no-data → nearly transparent
-    opacityGlobe:   0.85,                      // zoom 0 opacity
-    opacityClose:   0.72,                      // zoom 5+ opacity
-    opacityLoading: 0.30,                      // while re-fetching
+    noData:         "#e8e2d0",  // soft warm gray on cream basemap
+    opacityGlobe:   1.0,        // Daylight uses full opacity
+    opacityClose:   1.0,
+    opacityLoading: 0.55,
   },
 
-  // ── Permanent country borders ────────────────────────────────────────────────
-  // Adaptive: white on no-data (sits on dark basemap), dark on scored (sits on
-  // YlOrRd fill — dark ink recedes rather than competing).
+  // ── Permanent borders — subtle ink on paper ────────────────────────────────
   border: {
-    noData: "rgba(255,255,255,0.18)",
-    scored: "rgba(0,0,0,0.28)",
-    widths: { z1: 0.4, z3: 0.7, z5: 1.1, z8: 1.6 },
+    noData:  "rgba(24,22,19,0.10)",
+    scored:  "rgba(24,22,19,0.18)",
+    widths:  { z1: 0.3, z3: 0.5, z5: 0.8, z8: 1.2 },
   },
 
-  // ── Hover outline (transient) ────────────────────────────────────────────────
+  // ── Hover outline — coral glow ────────────────────────────────────────────
   hover: {
-    color:  "rgba(255,255,255,0.65)",
-    widths: { z1: 1.2, z3: 1.8, z5: 2.4, z8: 3.0 },
-    blur:   0.3,
-  },
-
-  // ── Watchlist outline (amber glow) ───────────────────────────────────────────
-  watched: {
-    color:  "rgba(251,191,36,0.85)",
+    color:  "rgba(224,87,60,0.75)",
     widths: { z1: 1.4, z3: 2.0, z5: 2.6, z8: 3.2 },
     blur:   0.4,
   },
 
-  // ── Selected-country: soft halo + crisp edge ─────────────────────────────────
-  // Two stacked layers give a "glow" effect without needing WebGL shaders.
+  // ── Watchlist outline — coral (matches accent) ────────────────────────────
+  watched: {
+    color:  "rgba(224,87,60,0.80)",
+    widths: { z1: 1.6, z3: 2.2, z5: 2.8, z8: 3.4 },
+    blur:   0.5,
+  },
+
+  // ── Selected glow + crisp edge ─────────────────────────────────────────────
   selectedGlow: {
-    color:  "rgba(255,255,255,0.13)",
-    widths: { z1: 6, z3: 9, z5: 12, z8: 16 },
-    blur:   4,
+    color:  "rgba(224,87,60,0.14)",
+    widths: { z1: 8, z3: 11, z5: 14, z8: 18 },
+    blur:   5,
   },
   selected: {
-    color:  "rgba(255,255,255,0.97)",
+    color:  "rgba(224,87,60,0.95)",
     widths: { z1: 2.0, z3: 2.8, z5: 3.6, z8: 4.4 },
     blur:   0.2,
   },
 
-  // ── Article pin popups ────────────────────────────────────────────────────────
+  // ── Popup (pin-layer article popups) ─────────────────────────────────────
   popup: {
-    background: "rgba(8,10,16,0.97)",
-    border:     "rgba(255,255,255,0.07)",
-    text:       "#f3f4f6",
-    textMuted:  "#9ca3af",
-    link:       "#60a5fa",
+    background: "#ffffff",
+    border:     "rgba(24,22,19,0.10)",
+    text:       "#181613",
+    textMuted:  "#7a7568",
+    link:       "#e0573c",
   },
 
 } as const;
 
-// ─── Helper: build a zoom-interpolated width Mapbox expression ────────────────
-// Used in heat-layer.tsx so every outline shares the same interpolation pattern.
+// ─── Helper: build a zoom-interpolated width Mapbox expression ─────────────────
 import type mapboxgl from "mapbox-gl";
 
 export function zoomWidth(
@@ -99,14 +130,15 @@ export function zoomWidth(
   ];
 }
 
-// ─── Category accent colours (shared between tooltip, pin layer, watchlist) ───
+// ─── Category accent colour ────────────────────────────────────────────────────
+// Daylight is a single-accent system — all categories use coral.
 export const CATEGORY_COLORS: Record<string, string> = {
-  Conflict:      "#f87171",
-  Humanitarian:  "#fb923c",
-  Politics:      "#60a5fa",
-  Economics:     "#34d399",
-  Technology:    "#a78bfa",
-  Environment:   "#2dd4bf",
-  Sports:        "#fbbf24",
-  Entertainment: "#f472b6",
+  Conflict:      DL.CORAL,
+  Humanitarian:  DL.CORAL,
+  Politics:      DL.CORAL,
+  Economics:     DL.CORAL,
+  Technology:    DL.CORAL,
+  Environment:   DL.CORAL,
+  Sports:        DL.CORAL,
+  Entertainment: DL.CORAL,
 };

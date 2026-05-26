@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import type mapboxgl from "mapbox-gl";
-import { MapTokens, HEAT_RAMP, zoomWidth } from "@/lib/design-tokens";
+import { MapTokens, zoomWidth } from "@/lib/design-tokens";
 import type { ScoresMap } from "@/lib/hooks/use-scores";
 
 interface HeatLayerProps {
@@ -13,15 +13,9 @@ interface HeatLayerProps {
   watchedIsos?: string[];
 }
 
-// ─── Source: Mapbox's own country boundaries vector tileset ──────────────────
-// Same data source the basemap renders from → fill aligns perfectly with the
-// borders shown by the basemap. promoteId surfaces ISO_A3 as the feature ID
-// so we can target countries directly with setFeatureState.
 const SOURCE_ID    = "country-boundaries";
 const SOURCE_LAYER = "country_boundaries";
 
-// Polygons only (the source also contains LineString features for disputes),
-// limited to the global undisputed + US worldview interpretation.
 const POLYGON_FILTER: mapboxgl.Expression = [
   "all",
   ["==", ["geometry-type"], "Polygon"],
@@ -31,23 +25,40 @@ const POLYGON_FILTER: mapboxgl.Expression = [
   ],
 ];
 
-// ─── Fill colour (driven by feature-state.score) ─────────────────────────────
+// ─── Daylight fill: step ladder, cream → peach → coral ───────────────────────
 const FILL_COLOR_EXPR: mapboxgl.Expression = [
-  "case",
-  ["==", ["coalesce", ["feature-state", "score"], 0], 0],
-  MapTokens.fill.noData,
-  [
-    "interpolate", ["linear"], ["feature-state", "score"],
-    ...HEAT_RAMP.flatMap(([s, c]) => [s, c] as [number, string]),
-  ],
+  "step",
+  ["coalesce", ["feature-state", "score"], 0],
+  "#e8e2d0",         // 0     → warm gray (no data)
+  0.001, "#fbe6cd",  // >0    → palest cream
+  5,     "#fad9b3",  // 5+    → sand
+  20,    "#f6bc8a",  // 20+   → warm peach
+  40,    "#f0936b",  // 40+   → apricot
+  60,    "#e26a4f",  // 60+   → terracotta
+  80,    "#c93e2a",  // 80+   → deep coral
 ];
 
-// ─── Adaptive border colour ──────────────────────────────────────────────────
+// ─── Adaptive border ──────────────────────────────────────────────────────────
 const BORDER_COLOR_EXPR: mapboxgl.Expression = [
   "case",
   ["==", ["coalesce", ["feature-state", "score"], 0], 0],
   MapTokens.border.noData,
   MapTokens.border.scored,
+];
+
+// ─── Adaptive label colours (dark ink on light fills, light cream on dark) ───
+const LABEL_TEXT_COLOR: mapboxgl.Expression = [
+  "case",
+  ["==", ["coalesce", ["feature-state", "score"], 0], 0], "#3a2a1a",
+  ["<",  ["coalesce", ["feature-state", "score"], 0], 55], "#1a140a",
+  "#fffaef",
+];
+
+const LABEL_HALO_COLOR: mapboxgl.Expression = [
+  "case",
+  ["==", ["coalesce", ["feature-state", "score"], 0], 0], "rgba(246,243,236,0.90)",
+  ["<",  ["coalesce", ["feature-state", "score"], 0], 55], "rgba(255,255,255,0.75)",
+  "rgba(26,14,8,0.95)",
 ];
 
 const ALL_LAYER_IDS = [
@@ -57,18 +68,20 @@ const ALL_LAYER_IDS = [
   "heat-hover-outline",
   "heat-outline",
   "heat-fill",
+  "heat-pulse-halo",
+  "heat-pulse-dot",
+  "heat-country-label",
 ];
 
 export default function HeatLayer({
   map, scores, isLoading, selectedIso, watchedIsos = [],
 }: HeatLayerProps) {
-  // Keep latest scores accessible from inside the sourcedata handler closure
   const scoresRef = useRef<ScoresMap | null>(null);
   scoresRef.current = scores;
 
-  // ── Add source + all layers once on mount ───────────────────────────────────
+  // ── Add source + all layers once on mount ──────────────────────────────────
   useEffect(() => {
-    if (map.getSource(SOURCE_ID)) return; // StrictMode / HMR guard
+    if (map.getSource(SOURCE_ID)) return;
 
     map.addSource(SOURCE_ID, {
       type: "vector",
@@ -76,7 +89,7 @@ export default function HeatLayer({
       promoteId: { [SOURCE_LAYER]: "iso_3166_1_alpha_3" },
     });
 
-    const beforeId = map.getLayer("country-label") ? "country-label" : undefined;
+    const beforeLabel = map.getLayer("country-label") ? "country-label" : undefined;
 
     // 1. Fill
     map.addLayer({
@@ -87,12 +100,9 @@ export default function HeatLayer({
       filter: POLYGON_FILTER,
       paint: {
         "fill-color":   FILL_COLOR_EXPR,
-        "fill-opacity": ["interpolate", ["linear"], ["zoom"],
-          0, MapTokens.fill.opacityGlobe,
-          5, MapTokens.fill.opacityClose,
-        ],
+        "fill-opacity": MapTokens.fill.opacityGlobe,
       },
-    }, beforeId);
+    }, beforeLabel);
 
     // 2. Permanent adaptive border
     map.addLayer({
@@ -105,7 +115,7 @@ export default function HeatLayer({
         "line-color": BORDER_COLOR_EXPR,
         "line-width": zoomWidth(MapTokens.border.widths),
       },
-    }, beforeId);
+    }, beforeLabel);
 
     // 3. Hover highlight
     map.addLayer({
@@ -119,7 +129,7 @@ export default function HeatLayer({
         "line-width": zoomWidth(MapTokens.hover.widths),
         "line-blur":  MapTokens.hover.blur,
       },
-    }, beforeId);
+    }, beforeLabel);
 
     // 4. Watchlist outline
     map.addLayer({
@@ -133,9 +143,9 @@ export default function HeatLayer({
         "line-width": zoomWidth(MapTokens.watched.widths),
         "line-blur":  MapTokens.watched.blur,
       },
-    }, beforeId);
+    }, beforeLabel);
 
-    // 5. Selected glow (translucent halo)
+    // 5. Selected glow (halo)
     map.addLayer({
       id: "heat-selected-glow",
       type: "line",
@@ -147,7 +157,7 @@ export default function HeatLayer({
         "line-width": zoomWidth(MapTokens.selectedGlow.widths),
         "line-blur":  MapTokens.selectedGlow.blur,
       },
-    }, beforeId);
+    }, beforeLabel);
 
     // 6. Selected crisp edge
     map.addLayer({
@@ -161,15 +171,76 @@ export default function HeatLayer({
         "line-width": zoomWidth(MapTokens.selected.widths),
         "line-blur":  MapTokens.selected.blur,
       },
-    }, beforeId);
+    }, beforeLabel);
 
-    // ── Apply feature states whenever the vector tiles arrive ─────────────────
-    // setFeatureState only works once a tile is loaded for the feature, so we
-    // listen on `sourcedata` and re-apply whenever the source finishes loading.
+    // 7. Pulse halo — countries with score ≥ 70
+    map.addLayer({
+      id: "heat-pulse-halo",
+      type: "circle",
+      source: SOURCE_ID,
+      "source-layer": SOURCE_LAYER,
+      filter: ["all", POLYGON_FILTER, [">=", ["coalesce", ["feature-state", "score"], 0], 70]],
+      paint: {
+        "circle-radius":       8,
+        "circle-color":        "rgba(224,87,60,0)",
+        "circle-stroke-color": "rgba(224,87,60,0.30)",
+        "circle-stroke-width": 5,
+        "circle-blur":         0.5,
+      },
+    });
+
+    // 8. Pulse solid dot
+    map.addLayer({
+      id: "heat-pulse-dot",
+      type: "circle",
+      source: SOURCE_ID,
+      "source-layer": SOURCE_LAYER,
+      filter: ["all", POLYGON_FILTER, [">=", ["coalesce", ["feature-state", "score"], 0], 70]],
+      paint: {
+        "circle-radius":       3,
+        "circle-color":        "#e0573c",
+        "circle-stroke-color": "#fff8ee",
+        "circle-stroke-width": 1.2,
+      },
+    });
+
+    // 9. Custom country labels with adaptive feature-state colours
+    //    Uses DIN Offc Pro Medium (built into Mapbox's font service).
+    map.addLayer({
+      id: "heat-country-label",
+      type: "symbol",
+      source: SOURCE_ID,
+      "source-layer": SOURCE_LAYER,
+      filter: POLYGON_FILTER,
+      layout: {
+        "text-field":          ["get", "name_en"],
+        "text-font":           ["DIN Offc Pro Medium", "Arial Unicode MS Regular"],
+        "text-size":           ["interpolate", ["linear"], ["zoom"], 1, 8, 3, 10, 5, 12, 7, 13],
+        "text-letter-spacing": 0.04,
+        "text-max-width":      7,
+        "text-padding":        2,
+        "text-anchor":         "center",
+        "text-allow-overlap":  false,
+        "symbol-sort-key":     ["-", 100, ["coalesce", ["feature-state", "score"], 0]],
+      },
+      paint: {
+        "text-color":      LABEL_TEXT_COLOR,
+        "text-halo-color": LABEL_HALO_COLOR,
+        "text-halo-width": 1.4,
+        "text-halo-blur":  0.3,
+        "text-opacity": ["interpolate", ["linear"], ["zoom"], 1, 0, 2.5, 1],
+      },
+    });
+
+    // Suppress basemap country labels to avoid duplication
+    if (map.getLayer("country-label")) {
+      map.setLayoutProperty("country-label", "visibility", "none");
+    }
+
+    // Apply feature-states whenever tiles arrive
     const applyAllStates = () => {
       const cur = scoresRef.current;
       if (!cur) return;
-      // Clear stale states so countries removed from the new scores reset to no-data
       map.removeFeatureState({ source: SOURCE_ID, sourceLayer: SOURCE_LAYER });
       for (const [iso, val] of Object.entries(cur)) {
         map.setFeatureState(
@@ -180,9 +251,7 @@ export default function HeatLayer({
     };
 
     const onSourceData = (e: mapboxgl.MapSourceDataEvent) => {
-      if (e.sourceId === SOURCE_ID && e.isSourceLoaded) {
-        applyAllStates();
-      }
+      if (e.sourceId === SOURCE_ID && e.isSourceLoaded) applyAllStates();
     };
     map.on("sourcedata", onSourceData);
 
@@ -193,14 +262,17 @@ export default function HeatLayer({
           if (map.getLayer(id)) map.removeLayer(id);
         }
         if (map.getSource(SOURCE_ID)) map.removeSource(SOURCE_ID);
-      } catch { /* map already torn down (HMR) */ }
+        if (map.getLayer("country-label")) {
+          map.setLayoutProperty("country-label", "visibility", "visible");
+        }
+      } catch { /* map torn down (HMR) */ }
     };
   }, [map]);
 
-  // ── Re-apply feature states whenever scores change ──────────────────────────
+  // ── Re-apply feature states when scores change ────────────────────────────
   useEffect(() => {
     if (!scores || !map.getSource(SOURCE_ID)) return;
-    if (!map.isSourceLoaded(SOURCE_ID)) return; // sourcedata handler will catch it
+    if (!map.isSourceLoaded(SOURCE_ID)) return;
     map.removeFeatureState({ source: SOURCE_ID, sourceLayer: SOURCE_LAYER });
     for (const [iso, val] of Object.entries(scores)) {
       map.setFeatureState(
@@ -210,7 +282,7 @@ export default function HeatLayer({
     }
   }, [map, scores]);
 
-  // ── Sync watchlist filter ───────────────────────────────────────────────────
+  // ── Sync watchlist filter ─────────────────────────────────────────────────
   useEffect(() => {
     if (!map.getLayer("heat-watched-outline")) return;
     map.setFilter("heat-watched-outline",
@@ -218,7 +290,7 @@ export default function HeatLayer({
     );
   }, [map, watchedIsos]);
 
-  // ── Sync selected-country filter (glow + crisp outline) ────────────────────
+  // ── Sync selected-country filter ──────────────────────────────────────────
   useEffect(() => {
     const iso = selectedIso ?? "";
     const filter: mapboxgl.Expression = ["all", POLYGON_FILTER, ["==", ["get", "iso_3166_1_alpha_3"], iso]];
@@ -226,18 +298,12 @@ export default function HeatLayer({
     if (map.getLayer("heat-selected-outline")) map.setFilter("heat-selected-outline", filter);
   }, [map, selectedIso]);
 
-  // ── Dim fill while a filter-change re-fetch is in flight ────────────────────
+  // ── Dim fill while loading ────────────────────────────────────────────────
   useEffect(() => {
     if (!map.getLayer("heat-fill")) return;
     map.setPaintProperty(
-      "heat-fill",
-      "fill-opacity",
-      isLoading
-        ? MapTokens.fill.opacityLoading
-        : ["interpolate", ["linear"], ["zoom"],
-            0, MapTokens.fill.opacityGlobe,
-            5, MapTokens.fill.opacityClose,
-          ],
+      "heat-fill", "fill-opacity",
+      isLoading ? MapTokens.fill.opacityLoading : MapTokens.fill.opacityGlobe,
     );
   }, [map, isLoading]);
 

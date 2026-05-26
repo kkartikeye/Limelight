@@ -1,151 +1,226 @@
 "use client";
 
 import { useEffect } from "react";
-import ArticleCard from "./article-card";
 import { useArticles } from "@/lib/hooks/use-articles";
 import { useMapStore } from "@/lib/stores/map-store";
 import { useWatchlistStore } from "@/lib/stores/watchlist-store";
+import { DL } from "@/lib/design-tokens";
+import type { Article } from "@/lib/types/article";
 
 interface StoryPanelProps {
   countryCode: string;
   countryName: string;
   score: number;
-  onClose: () => void;
+  onClose?: () => void;
 }
 
-function scoreChipColor(score: number): string {
-  if (score >= 75) return "bg-red-600";
-  if (score >= 50) return "bg-orange-500";
-  if (score >= 25) return "bg-yellow-500";
-  return "bg-gray-600";
+function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const h = Math.floor(diff / 3_600_000);
+  if (h < 1) return "< 1h";
+  if (h < 24) return `${h}h`;
+  return `${Math.floor(h / 24)}d`;
 }
 
-export default function StoryPanel({
-  countryCode,
-  countryName,
-  score,
-  onClose,
-}: StoryPanelProps) {
+function HeadlineRow({ article, index }: { article: Article; index: number }) {
+  return (
+    <div style={{
+      padding: "12px 0",
+      borderBottom: `1px solid ${DL.RULE_2}`,
+      display: "flex",
+      gap: 12,
+      alignItems: "flex-start",
+    }}>
+      <span style={{
+        width: 24, flexShrink: 0,
+        fontFamily: DL.MONO, fontSize: 11, color: DL.DIM,
+        paddingTop: 2, fontVariantNumeric: "tabular-nums",
+      }}>
+        {String(index + 1).padStart(2, "0")}
+      </span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <a
+          href={article.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: "block",
+            fontFamily: DL.SANS,
+            fontSize: 14,
+            lineHeight: 1.32,
+            color: DL.INK,
+            fontWeight: 500,
+            textDecoration: "none",
+            transition: "color 0.1s",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.color = DL.CORAL)}
+          onMouseLeave={(e) => (e.currentTarget.style.color = DL.INK)}
+        >
+          {article.headline}
+        </a>
+        <div style={{
+          display: "flex", alignItems: "center", gap: 8,
+          marginTop: 5, fontSize: 11, color: DL.DIM, fontFamily: DL.SANS,
+        }}>
+          <span style={{ fontWeight: 600, color: DL.INK_2 }}>{article.source}</span>
+          <span>·</span>
+          <span style={{ color: DL.CORAL, fontWeight: 600 }}>{article.category}</span>
+          <span style={{ marginLeft: "auto", fontFamily: DL.MONO, fontSize: 10 }}>
+            {relativeTime(article.publishedAt)}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function StoryPanel({ countryCode, countryName, score, onClose }: StoryPanelProps) {
   const { filters } = useMapStore();
   const { toggleWatch, isWatched } = useWatchlistStore();
   const watched = isWatched(countryCode);
-  const { articles, loading, isLive } = useArticles(
-    countryCode,
-    filters.timeWindow,
-    filters.categories
-  );
+  const { articles, loading, isLive } = useArticles(countryCode, filters.timeWindow, filters.categories);
 
-  // Close on Escape key
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
+    if (!onClose) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
+  const chipBg    = score >= 70 ? DL.CORAL_50 : "#f0ede7";
+  const chipColor = score >= 70 ? DL.CORAL    : DL.DIM;
+  const chipBd    = score >= 70 ? DL.CORAL_BD : "rgba(24,22,19,0.10)";
+
   return (
-    <div
-      role="dialog"
-      aria-labelledby="panel-title"
-      className="absolute right-0 top-0 z-20 flex h-full w-[380px] flex-col bg-gray-950/95 shadow-2xl backdrop-blur-md"
-      style={{
-        animation: "panel-slide-in 250ms ease-out",
-        willChange: "transform",
-      }}
-    >
-      {/* Header */}
-      <div className="flex items-start justify-between border-b border-white/10 px-5 py-4">
-        <div className="flex flex-col gap-1">
-          <h2
-            id="panel-title"
-            className="text-base font-bold leading-tight text-white"
-          >
-            {countryName}
-          </h2>
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-mono text-gray-400">
-              {countryCode}
-            </span>
-            <span
-              className={`rounded px-2 py-0.5 text-xs font-semibold text-white ${scoreChipColor(score)}`}
-            >
-              {score} intensity
-            </span>
-            {isLive && (
-              <span className="flex items-center gap-1 rounded border border-emerald-700/50 bg-emerald-900/60 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-400">
-                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
-                LIVE
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="ml-4 flex flex-shrink-0 items-center gap-1">
-          {/* Watch toggle */}
+    <div style={{
+      display: "flex", flexDirection: "column", height: "100%",
+      padding: "16px 36px 22px 28px",
+      background: DL.PAPER,
+      borderLeft: `1px solid ${DL.RULE}`,
+      overflow: "hidden",
+    }}>
+      {/* Eyebrow + actions */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span style={{
+          fontFamily: DL.MONO, fontSize: 10, letterSpacing: 0.18,
+          textTransform: "uppercase", color: DL.DIM,
+        }}>
+          In focus
+        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button
             onClick={() => toggleWatch(countryCode, countryName)}
-            aria-label={watched ? "Remove from watchlist" : "Add to watchlist"}
             title={watched ? "Remove from watchlist" : "Watch this country"}
-            className={`rounded p-1 transition-colors ${
-              watched
-                ? "text-amber-400 hover:bg-amber-400/10"
-                : "text-gray-500 hover:bg-white/10 hover:text-amber-400"
-            }`}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 5,
+              color: watched ? DL.CORAL : DL.DIM,
+              background: "none", border: "none", cursor: "pointer",
+              fontFamily: DL.SANS, fontSize: 11,
+            }}
           >
-            <svg
-              width="15"
-              height="15"
-              viewBox="0 0 16 16"
+            <svg width="12" height="12" viewBox="0 0 16 16"
               fill={watched ? "currentColor" : "none"}
-              stroke="currentColor"
-              strokeWidth={watched ? "0" : "1.5"}
-            >
+              stroke="currentColor" strokeWidth={watched ? "0" : "1.5"}>
               <path d="M8 .25a.75.75 0 0 1 .673.418l1.882 3.815 4.21.612a.75.75 0 0 1 .416 1.279l-3.046 2.97.719 4.192a.751.751 0 0 1-1.088.791L8 12.347l-3.766 1.98a.75.75 0 0 1-1.088-.79l.72-4.194L.818 6.374a.75.75 0 0 1 .416-1.28l4.21-.611L7.327.668A.75.75 0 0 1 8 .25Z" />
             </svg>
+            Save
           </button>
-          {/* Close */}
-          <button
-            onClick={onClose}
-            aria-label="Close panel"
-            className="rounded p-1 text-gray-400 transition-colors hover:bg-white/10 hover:text-white"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z" />
-            </svg>
-          </button>
+          {onClose && (
+            <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: DL.DIM, padding: 2 }}>
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.75.75 0 1 1 1.06 1.06L9.06 8l3.22 3.22a.75.75 0 1 1-1.06 1.06L8 9.06l-3.22 3.22a.75.75 0 0 1-1.06-1.06L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z" />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Article list */}
-      <div className="flex-1 overflow-y-auto px-5">
+      {/* Serif country name */}
+      <div style={{
+        fontFamily: DL.DISPLAY, fontSize: 68, fontWeight: 400,
+        letterSpacing: -2, lineHeight: 0.9,
+        marginTop: 14, color: DL.INK,
+        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+      }}>
+        {countryName}
+      </div>
+
+      {/* Intensity + live */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
+        <span style={{
+          padding: "3px 9px", borderRadius: 999, fontSize: 11, fontWeight: 600,
+          background: chipBg, color: chipColor, border: `1px solid ${chipBd}`,
+          fontFamily: DL.SANS,
+        }}>
+          {score} intensity
+        </span>
+        <span style={{ fontSize: 11, color: DL.DIM, fontFamily: DL.SANS }}>
+          · {articles.length} stories
+        </span>
+        {isLive && (
+          <span style={{
+            marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 5,
+            fontSize: 11, color: DL.LIVE, fontWeight: 600, fontFamily: DL.SANS,
+          }}>
+            <span style={{ width: 6, height: 6, borderRadius: 999, background: DL.LIVE, flexShrink: 0, display: "inline-block" }} />
+            LIVE
+          </span>
+        )}
+      </div>
+
+      {/* Stats */}
+      <div style={{
+        display: "flex", gap: 0, marginTop: 20,
+        borderTop: `1px solid ${DL.RULE}`,
+        borderBottom: `1px solid ${DL.RULE}`,
+      }}>
+        {[
+          ["Articles", articles.length.toString(), DL.INK],
+          ["Sources",  new Set(articles.map((a) => a.source)).size.toString(), DL.INK],
+          ["Top cat.", articles[0]?.category ?? "—", DL.CORAL],
+        ].map(([k, v, c], i) => (
+          <div key={k} style={{
+            flex: 1, padding: "12px 0",
+            borderLeft: i > 0 ? `1px solid ${DL.RULE}` : "none",
+            paddingLeft: i > 0 ? 14 : 0,
+          }}>
+            <div style={{ fontSize: 10, color: DL.DIM, fontWeight: 500, letterSpacing: 0.04, fontFamily: DL.SANS }}>
+              {k}
+            </div>
+            <div style={{
+              fontFamily: DL.DISPLAY, fontSize: 22, fontWeight: 500,
+              marginTop: 3, color: c, letterSpacing: -0.4,
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            }}>
+              {v}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Headlines */}
+      <div style={{
+        marginTop: 18, fontSize: 10.5, color: DL.DIM, fontWeight: 600,
+        letterSpacing: 0.06, textTransform: "uppercase", fontFamily: DL.SANS,
+      }}>
+        Top headlines
+      </div>
+
+      <div style={{ flex: 1, overflowY: "auto", marginTop: 4 }}>
         {loading ? (
-          <div className="flex items-center justify-center py-16 text-gray-500">
-            <svg className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", paddingTop: 48 }}>
+            <svg className="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={DL.DIM} strokeWidth="2">
               <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
               <path d="M12 2a10 10 0 0 1 10 10" />
             </svg>
           </div>
         ) : articles.length > 0 ? (
-          articles.map((article) => (
-            <ArticleCard key={article.id} article={article} />
-          ))
+          articles.map((a, i) => <HeadlineRow key={a.id} article={a} index={i} />)
         ) : (
-          <div className="flex flex-col items-center justify-center py-16 text-center text-gray-500">
-            <svg
-              width="40"
-              height="40"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              className="mb-3"
-            >
-              <circle cx="11" cy="11" r="8" />
-              <path d="m21 21-4.35-4.35M11 8v3M11 14h.01" />
-            </svg>
-            <p className="text-sm">No recent coverage</p>
-            <p className="mt-1 text-xs">
-              This region has low media activity.
+          <div style={{ paddingTop: 40, textAlign: "center" }}>
+            <p style={{ fontSize: 13, color: DL.DIM, fontFamily: DL.SANS }}>No recent coverage</p>
+            <p style={{ fontSize: 11, color: DL.DIM_2, marginTop: 4, fontFamily: DL.SANS }}>
+              Low media activity in this region.
             </p>
           </div>
         )}

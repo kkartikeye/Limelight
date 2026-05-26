@@ -5,78 +5,37 @@ import mapboxgl from "mapbox-gl";
 import HeatLayer from "./heat-layer";
 import PinLayer from "./pin-layer";
 import Tooltip from "./tooltip";
-import StoryPanel from "@/components/panel/story-panel";
+import MapLoader from "@/components/ui/map-loader";
+import ViewToggle from "@/components/ui/view-toggle";
 import { useMapStore } from "@/lib/stores/map-store";
 import { useWatchlistStore } from "@/lib/stores/watchlist-store";
-import FilterBar from "@/components/filters/filter-bar";
-import StarToggle from "@/components/ui/star-toggle";
-import WatchlistWidget from "@/components/ui/watchlist-widget";
-import HeatLegend from "@/components/ui/heat-legend";
-import MapLoader from "@/components/ui/map-loader";
 import { useScores } from "@/lib/hooks/use-scores";
 import { usePins } from "@/lib/hooks/use-pins";
 import type { TopCategory } from "@/lib/types/scores";
+import type { Projection } from "@/lib/stores/map-store";
 
 const INITIAL_VIEW_STATE = {
-  longitude: 0,
+  longitude: 10,
   latitude: 20,
-  zoom: 1.8,
+  zoom: 1.5,
 };
 
-const PANEL_WIDTH = 380;
-
-const FOG_STARS_ON: Parameters<mapboxgl.Map["setFog"]>[0] = {
-  color: "rgb(12, 12, 18)",
-  "high-color": "#00001a",
-  "space-color": "#000010",
-  "horizon-blend": 0.06,
-  "star-intensity": 0.75,
-};
-
-const FOG_STARS_OFF: Parameters<mapboxgl.Map["setFog"]>[0] = {
-  color: "rgb(12, 12, 18)",
-  "high-color": "#00001a",
-  "space-color": "#0a0a1a",
-  "horizon-blend": 0.06,
+// ─── Daylight globe fog — paper-globe metaphor ─────────────────────────────
+const FOG_DAYLIGHT: Parameters<mapboxgl.Map["setFog"]>[0] = {
+  color:            "#fbf6e9",
+  "high-color":     "#fad9b3",
+  "space-color":    "#efeadf",
+  "horizon-blend":  0.08,
   "star-intensity": 0,
 };
 
-const LABEL_STYLES: Record<string, { color: string; haloColor: string; haloWidth: number }> = {
-  "country-label": {
-    color: "#f0e8d8",
-    haloColor: "rgba(0,0,0,0.95)",
-    haloWidth: 2.8,
-  },
-  "continent-label": {
-    color: "#4e5565",
-    haloColor: "rgba(0,0,0,0.7)",
-    haloWidth: 1,
-  },
-  "state-label": {
-    color: "#c8b89c",
-    haloColor: "rgba(0,0,0,0.88)",
-    haloWidth: 2,
-  },
-  "settlement-label": {
-    color: "#aaaaB4",
-    haloColor: "rgba(0,0,0,0.85)",
-    haloWidth: 1.5,
-  },
-  "settlement-subdivision-label": {
-    color: "#909098",
-    haloColor: "rgba(0,0,0,0.80)",
-    haloWidth: 1.5,
-  },
-  "natural-point-label": {
-    color: "#9caa96",
-    haloColor: "rgba(0,0,0,0.82)",
-    haloWidth: 1.5,
-  },
-  "water-point-label": {
-    color: "#8aaac0",
-    haloColor: "rgba(0,0,0,0.5)",
-    haloWidth: 1,
-  },
+// Flat view: minimal fog so sky doesn't show
+const FOG_FLAT: Parameters<mapboxgl.Map["setFog"]>[0] = {
+  color:            "#f6f3ec",
+  "high-color":     "#f6f3ec",
+  "space-color":    "#f6f3ec",
+  "horizon-blend":  0.0,
+  "star-intensity": 0,
 };
 
 interface HoverInfo {
@@ -88,45 +47,57 @@ interface HoverInfo {
   y: number;
 }
 
-// Mapbox country-boundaries-v1 feature properties
 interface CountryFeatureProps {
   iso_3166_1_alpha_3?: string;
   name_en?: string;
 }
 
-export default function MapView() {
+interface MapViewProps {
+  /** Called when user clicks a country (for parent layout to open its story panel) */
+  onSelectCountry?: (iso: string, name: string, score: number) => void;
+}
+
+export default function MapView({ onSelectCountry }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
 
-  const { scores, isLoading, isMock, lastUpdated, nextRefreshIn, isAutoRefreshing } = useScores();
+  const { scores, isLoading } = useScores();
   const { pinsGeoJson } = usePins();
 
-  // Stable ref so click/hover handlers (registered once) always see latest scores
   const scoresRef = useRef(scores);
   scoresRef.current = scores;
 
   const {
-    isPanelOpen, selectedCountry, selectedCountryName, selectedCountryScore,
-    selectCountry, clearSelection, showStars, toggleStars,
+    selectedCountry, selectCountry, clearSelection,
+    projection, setProjection,
   } = useMapStore();
   const { watched } = useWatchlistStore();
   const watchedIsos = useMemo(() => watched.map((w) => w.iso), [watched]);
 
-  const closePanel = () => {
-    clearSelection();
-    mapRef.current?.easeTo({ padding: { right: 0 }, duration: 250 });
-  };
+  // ── Read projection preference from localStorage on mount ──────────────────
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("limelight:projection") as Projection | null;
+      if (saved === "globe" || saved === "naturalEarth") setProjection(saved);
+    } catch { /* SSR / storage unavailable */ }
+  }, [setProjection]);
 
-  const handleStarToggle = () => {
+  // ── Sync projection to Mapbox + localStorage when it changes ───────────────
+  useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
-    toggleStars();
-    map.setFog(showStars ? FOG_STARS_OFF : FOG_STARS_ON);
-  };
+    if (!map || !mapLoaded) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    map.setProjection({ name: projection } as any);
+    map.setFog(projection === "globe" ? FOG_DAYLIGHT : FOG_FLAT);
+    try { localStorage.setItem("limelight:projection", projection); } catch { /* ok */ }
+  }, [projection, mapLoaded]);
 
+  const handleProjectionChange = (p: Projection) => setProjection(p);
+
+  // ── Initialise Mapbox ──────────────────────────────────────────────────────
   useEffect(() => {
     if (typeof window === "undefined" || !containerRef.current) return;
 
@@ -134,9 +105,10 @@ export default function MapView() {
 
     const map = new mapboxgl.Map({
       container: containerRef.current,
-      style: "mapbox://styles/mapbox/dark-v11",
+      // Daylight basemap: paper-cream background
+      style: "mapbox://styles/mapbox/light-v11",
       center: [INITIAL_VIEW_STATE.longitude, INITIAL_VIEW_STATE.latitude],
-      zoom: INITIAL_VIEW_STATE.zoom,
+      zoom:   INITIAL_VIEW_STATE.zoom,
       scrollZoom: false,
     });
 
@@ -146,22 +118,26 @@ export default function MapView() {
       setMapLoaded(true);
       setContainerWidth(containerRef.current?.offsetWidth ?? 0);
 
+      // Globe projection + Daylight fog
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       map.setProjection({ name: "globe" } as any);
-      map.setFog(FOG_STARS_ON);
+      map.setFog(FOG_DAYLIGHT);
 
-      Object.entries(LABEL_STYLES).forEach(([id, style]) => {
-        if (!map.getLayer(id)) return;
-        map.setPaintProperty(id, "text-color", style.color);
-        map.setPaintProperty(id, "text-halo-color", style.haloColor);
-        map.setPaintProperty(id, "text-halo-width", style.haloWidth);
-      });
+      // Read saved projection preference immediately
+      try {
+        const saved = localStorage.getItem("limelight:projection") as Projection | null;
+        if (saved === "naturalEarth") {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          map.setProjection({ name: "naturalEarth" } as any);
+          map.setFog(FOG_FLAT);
+        }
+      } catch { /* ok */ }
 
-      // ── Hover: read ISO from Mapbox feature, look up score from scoresRef ───
+      // ── Hover ────────────────────────────────────────────────────────────
       map.on("mousemove", "heat-fill", (e) => {
         if (!e.features?.length) return;
         const props = e.features[0].properties as CountryFeatureProps | null;
-        const iso = props?.iso_3166_1_alpha_3 ?? "";
+        const iso  = props?.iso_3166_1_alpha_3 ?? "";
         const name = props?.name_en ?? "Unknown";
 
         map.getCanvas().style.cursor = "pointer";
@@ -169,20 +145,17 @@ export default function MapView() {
           map.setFilter("heat-hover-outline", [
             "all",
             ["==", ["geometry-type"], "Polygon"],
-            ["any",
-              ["==", "all", ["get", "worldview"]],
-              ["in", "US", ["get", "worldview"]],
-            ],
+            ["any", ["==", "all", ["get", "worldview"]], ["in", "US", ["get", "worldview"]]],
             ["==", ["get", "iso_3166_1_alpha_3"], iso],
           ]);
         }
 
-        const scoreEntry = scoresRef.current?.[iso];
+        const entry = scoresRef.current?.[iso];
         setHoverInfo({
           name,
-          score: scoreEntry?.score ?? 0,
-          articleCount: scoreEntry?.articleCount ?? 0,
-          topCategory: scoreEntry?.topCategory ?? null,
+          score:        entry?.score        ?? 0,
+          articleCount: entry?.articleCount ?? 0,
+          topCategory:  entry?.topCategory  ?? null,
           x: e.point.x,
           y: e.point.y,
         });
@@ -194,26 +167,24 @@ export default function MapView() {
           map.setFilter("heat-hover-outline", [
             "all",
             ["==", ["geometry-type"], "Polygon"],
-            ["any",
-              ["==", "all", ["get", "worldview"]],
-              ["in", "US", ["get", "worldview"]],
-            ],
+            ["any", ["==", "all", ["get", "worldview"]], ["in", "US", ["get", "worldview"]]],
             ["==", ["get", "iso_3166_1_alpha_3"], ""],
           ]);
         }
         setHoverInfo(null);
       });
 
+      // ── Click ────────────────────────────────────────────────────────────
       map.on("click", "heat-fill", (e) => {
         if (!e.features?.length) return;
         const props = e.features[0].properties as CountryFeatureProps | null;
-        const iso = props?.iso_3166_1_alpha_3 ?? "";
-        const name = props?.name_en ?? "Unknown";
+        const iso   = props?.iso_3166_1_alpha_3 ?? "";
+        const name  = props?.name_en ?? "Unknown";
         const score = scoresRef.current?.[iso]?.score ?? 0;
 
         selectCountry(iso, name, score);
+        onSelectCountry?.(iso, name, score);
         setHoverInfo(null);
-        map.easeTo({ padding: { right: PANEL_WIDTH }, duration: 250 });
         map.scrollZoom.enable();
       });
 
@@ -221,7 +192,6 @@ export default function MapView() {
         const features = map.queryRenderedFeatures(e.point, { layers: ["heat-fill"] });
         if (!features.length) {
           clearSelection();
-          map.easeTo({ padding: { right: 0 }, duration: 250 });
         }
       });
     });
@@ -252,7 +222,11 @@ export default function MapView() {
   return (
     <div className="relative h-full w-full">
       {!mapLoaded && <MapLoader />}
+
+      {/* Mapbox canvas */}
       <div ref={containerRef} className="h-full w-full" />
+
+      {/* Mapbox layers */}
       {mapLoaded && mapRef.current && (
         <>
           <HeatLayer
@@ -265,6 +239,8 @@ export default function MapView() {
           <PinLayer map={mapRef.current} pinsGeoJson={pinsGeoJson} />
         </>
       )}
+
+      {/* Hover tooltip */}
       {hoverInfo && (
         <Tooltip
           name={hoverInfo.name}
@@ -273,37 +249,15 @@ export default function MapView() {
           topCategory={hoverInfo.topCategory}
           x={hoverInfo.x}
           y={hoverInfo.y}
-          containerWidth={containerWidth - (isPanelOpen ? PANEL_WIDTH : 0)}
+          containerWidth={containerWidth}
         />
       )}
-      {isPanelOpen && selectedCountry && (
-        <StoryPanel
-          countryCode={selectedCountry}
-          countryName={selectedCountryName}
-          score={selectedCountryScore}
-          onClose={closePanel}
-        />
-      )}
+
+      {/* View toggle — top-right of map */}
       {mapLoaded && (
-        <FilterBar
-          isLoading={isLoading}
-          isMock={isMock}
-          lastUpdated={lastUpdated}
-          nextRefreshIn={nextRefreshIn}
-          isAutoRefreshing={isAutoRefreshing}
-        />
-      )}
-      {mapLoaded && <StarToggle onToggle={handleStarToggle} />}
-      {mapLoaded && <HeatLegend />}
-      {mapLoaded && (
-        <WatchlistWidget
-          scores={scores}
-          onSelectCountry={(iso, name, score) => {
-            selectCountry(iso, name, score);
-            mapRef.current?.easeTo({ padding: { right: PANEL_WIDTH }, duration: 250 });
-            mapRef.current?.scrollZoom.enable();
-          }}
-        />
+        <div className="absolute top-3 right-3 z-10">
+          <ViewToggle value={projection} onChange={handleProjectionChange} />
+        </div>
       )}
     </div>
   );

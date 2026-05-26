@@ -2,36 +2,29 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Daylight base ────────────────────────────────────────────────────────────
+   Off-white paper background, ink-black text. No dark-mode override — Daylight
+   is intentionally a light-only treatment. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f6f3ec;
+  --foreground: #181613;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  height: 100%;
 }
 
-html,
 body {
   height: 100%;
-  overflow: hidden;
-  color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--foreground);
+  font-family: var(--font-body), "Manrope", system-ui, sans-serif;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-}
-
+/* ── Keyframes ────────────────────────────────────────────────────────────── */
 @keyframes tooltip-fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes panel-slide-in {
@@ -44,50 +37,59 @@ body {
   to   { opacity: 0; pointer-events: none; }
 }
 
-/* ── Mapbox article-pin popup — dark theme ─────────────────────────────────── */
-/* Targets only .limelight-popup so the default Mapbox popups stay untouched.  */
-/* To restyle, change the colour values here (they mirror MapTokens.popup).    */
+@keyframes pulse-halo {
+  from { opacity: 0.25; }
+  to   { opacity: 0.70; }
+}
+
+/* ── Text wrap balance utility ────────────────────────────────────────────── */
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* ── Mapbox overrides for light basemap ───────────────────────────────────── */
+/* The basemap is light-v11; remove the blue tint on the Mapbox logo. */
+.mapboxgl-ctrl-logo {
+  opacity: 0.4;
+}
+.mapboxgl-ctrl-attrib {
+  background: rgba(246,243,236,0.85) !important;
+  color: #7a7568 !important;
+  font-family: var(--font-plex), monospace;
+  font-size: 9px !important;
+}
+
+/* ── Article-pin popup — Daylight light theme ─────────────────────────────── */
 .limelight-popup .mapboxgl-popup-content {
-  background:     rgba(8, 10, 16, 0.97);
-  border:         1px solid rgba(255, 255, 255, 0.07);
-  border-radius:  10px;
-  padding:        12px 14px;
-  box-shadow:     0 20px 60px rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(8px);
+  background:       #ffffff;
+  border:           1px solid rgba(24,22,19,0.10);
+  border-radius:    12px;
+  padding:          12px 14px;
+  box-shadow:       0 16px 40px rgba(24,22,19,0.12);
+  backdrop-filter:  blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
 
-/* Arrow tip — match popup background for each anchor direction */
-.limelight-popup.mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip {
-  border-top-color: rgba(8, 10, 16, 0.97);
-}
-.limelight-popup.mapboxgl-popup-anchor-top .mapboxgl-popup-tip {
-  border-bottom-color: rgba(8, 10, 16, 0.97);
-}
-.limelight-popup.mapboxgl-popup-anchor-left .mapboxgl-popup-tip {
-  border-right-color: rgba(8, 10, 16, 0.97);
-}
-.limelight-popup.mapboxgl-popup-anchor-right .mapboxgl-popup-tip {
-  border-left-color: rgba(8, 10, 16, 0.97);
-}
-.limelight-popup.mapboxgl-popup-anchor-bottom-left .mapboxgl-popup-tip,
-.limelight-popup.mapboxgl-popup-anchor-bottom-right .mapboxgl-popup-tip {
-  border-top-color: rgba(8, 10, 16, 0.97);
-}
-.limelight-popup.mapboxgl-popup-anchor-top-left .mapboxgl-popup-tip,
-.limelight-popup.mapboxgl-popup-anchor-top-right .mapboxgl-popup-tip {
-  border-bottom-color: rgba(8, 10, 16, 0.97);
-}
+.limelight-popup.mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip { border-top-color: #ffffff; }
+.limelight-popup.mapboxgl-popup-anchor-top    .mapboxgl-popup-tip { border-bottom-color: #ffffff; }
+.limelight-popup.mapboxgl-popup-anchor-left   .mapboxgl-popup-tip { border-right-color: #ffffff; }
+.limelight-popup.mapboxgl-popup-anchor-right  .mapboxgl-popup-tip { border-left-color: #ffffff; }
+.limelight-popup.mapboxgl-popup-anchor-bottom-left  .mapboxgl-popup-tip,
+.limelight-popup.mapboxgl-popup-anchor-bottom-right .mapboxgl-popup-tip { border-top-color: #ffffff; }
+.limelight-popup.mapboxgl-popup-anchor-top-left   .mapboxgl-popup-tip,
+.limelight-popup.mapboxgl-popup-anchor-top-right  .mapboxgl-popup-tip { border-bottom-color: #ffffff; }
 
 .limelight-popup .mapboxgl-popup-close-button {
-  color:       rgba(255, 255, 255, 0.35);
-  font-size:   18px;
-  line-height: 1;
-  padding:     4px 8px;
+  color:        rgba(24,22,19,0.35);
+  font-size:    18px;
+  line-height:  1;
+  padding:      4px 8px;
   border-radius: 4px;
-  transition:  color 0.15s, background 0.15s;
+  transition:   color 0.15s, background 0.15s;
 }
 .limelight-popup .mapboxgl-popup-close-button:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color:      rgba(255, 255, 255, 0.85);
+  background: rgba(24,22,19,0.06);
+  color:      rgba(24,22,19,0.80);
 }

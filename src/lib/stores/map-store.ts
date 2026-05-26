@@ -23,6 +23,8 @@ export const ALL_CATEGORIES: Category[] = [
   "Entertainment",
 ];
 
+export type Projection = "globe" | "naturalEarth";
+
 interface Filters {
   timeWindow: TimeWindow;
   categories: Category[];
@@ -41,8 +43,8 @@ interface MapState {
   // Filters
   filters: Filters;
 
-  // Stars
-  showStars: boolean;
+  // Projection (persisted to localStorage via mapEffect in MapView)
+  projection: Projection;
 
   // Actions
   selectCountry: (code: string, name: string, score: number) => void;
@@ -50,7 +52,7 @@ interface MapState {
   setHover: (code: string | null) => void;
   setTimeWindow: (tw: TimeWindow) => void;
   toggleCategory: (cat: Category) => void;
-  toggleStars: () => void;
+  setProjection: (p: Projection) => void;
 }
 
 export const useMapStore = create<MapState>()((set) => ({
@@ -66,7 +68,7 @@ export const useMapStore = create<MapState>()((set) => ({
     categories: [...ALL_CATEGORIES],
   },
 
-  showStars: true,
+  projection: "globe",
 
   selectCountry: (code, name, score) =>
     set({ selectedCountry: code, selectedCountryName: name, selectedCountryScore: score, isPanelOpen: true }),
@@ -88,5 +90,5 @@ export const useMapStore = create<MapState>()((set) => ({
       return { filters: { ...s.filters, categories: next } };
     }),
 
-  toggleStars: () => set((s) => ({ showStars: !s.showStars })),
+  setProjection: (p) => set({ projection: p }),
 }));
