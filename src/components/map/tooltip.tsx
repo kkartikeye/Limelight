@@ -1,5 +1,6 @@
 "use client";
 
+import { HEAT_RAMP, CATEGORY_COLORS } from "@/lib/design-tokens";
 import type { TopCategory } from "@/lib/types/scores";
 
 interface TooltipProps {
@@ -12,27 +13,13 @@ interface TooltipProps {
   containerWidth: number;
 }
 
+/** Derive accent color from the shared ramp — stays in sync with HeatLayer automatically. */
 function scoreToColor(score: number): string {
-  if (score >= 87) return "#bd0026";
-  if (score >= 75) return "#e31a1c";
-  if (score >= 62) return "#fc4e2a";
-  if (score >= 50) return "#fd8d3c";
-  if (score >= 37) return "#feb24c";
-  if (score >= 25) return "#fed976";
-  if (score >= 12) return "#ffeda0";
-  return "#ffffcc";
+  for (let i = HEAT_RAMP.length - 1; i >= 0; i--) {
+    if (score >= HEAT_RAMP[i][0]) return HEAT_RAMP[i][1];
+  }
+  return HEAT_RAMP[0][1];
 }
-
-const CATEGORY_COLOR: Record<TopCategory, string> = {
-  Conflict:      "#f87171",
-  Humanitarian:  "#fb923c",
-  Politics:      "#60a5fa",
-  Economics:     "#34d399",
-  Technology:    "#a78bfa",
-  Environment:   "#2dd4bf",
-  Sports:        "#fbbf24",
-  Entertainment: "#f472b6",
-};
 
 const TOOLTIP_W = 172;
 
@@ -94,7 +81,7 @@ export default function Tooltip({
               {topCategory ? (
                 <span
                   className="text-[11px] font-medium truncate"
-                  style={{ color: CATEGORY_COLOR[topCategory] }}
+                  style={{ color: CATEGORY_COLORS[topCategory] }}
                 >
                   {topCategory}
                 </span>
