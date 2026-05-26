@@ -5,6 +5,7 @@ import Link from "next/link";
 import Header from "@/components/ui/header";
 import { DL } from "@/lib/design-tokens";
 import { relativeTime } from "@/lib/utils/time";
+import { countryName } from "@/lib/utils/countries";
 
 interface ApiArticle {
   id: string;
@@ -51,14 +52,14 @@ export default function ArticlePage({ params }: PageProps) {
         display: "flex", alignItems: "center", gap: 10,
         padding: "14px 44px 0", color: DL.DIM, fontSize: 12,
       }}>
-        <Link href={article?.countryCode ? `/country/${article.countryCode}?name=${encodeURIComponent(article.countryCode)}` : "/"} style={{
+        <Link href={article?.countryCode ? `/country/${article.countryCode}?name=${encodeURIComponent(countryName(article.countryCode))}` : "/"} style={{
           display: "inline-flex", alignItems: "center", gap: 6,
           color: DL.INK_2, fontWeight: 500, textDecoration: "none",
         }}>
           <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
             <polyline points="8,3 4,7 8,11" /><line x1="4" y1="7" x2="12" y2="7" />
           </svg>
-          {article?.countryCode ?? "Back"}
+          {article?.countryCode ? countryName(article.countryCode) : "Back"}
         </Link>
         {article && (
           <>
@@ -114,7 +115,7 @@ export default function ArticlePage({ params }: PageProps) {
                 textTransform: "uppercase", color: DL.CORAL,
               }}>
                 <span style={{ width: 6, height: 6, borderRadius: 999, background: DL.CORAL, display: "inline-block" }} />
-                {article.category} · {article.countryCode}
+                {article.category} · {countryName(article.countryCode)}
               </div>
 
               {/* Headline */}
@@ -261,13 +262,13 @@ export default function ArticlePage({ params }: PageProps) {
                   Explore
                 </div>
                 <Link
-                  href={`/country/${article.countryCode}?name=${encodeURIComponent(article.countryCode)}`}
+                  href={`/country/${article.countryCode}?name=${encodeURIComponent(countryName(article.countryCode))}`}
                   style={{
                     display: "inline-flex", alignItems: "center", gap: 6,
                     fontSize: 12, color: DL.INK_2, textDecoration: "none", fontWeight: 500,
                   }}
                 >
-                  All coverage from {article.countryCode}
+                  All coverage from {countryName(article.countryCode)}
                   <svg width="10" height="10" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
                     <line x1="2" y1="7" x2="12" y2="7" /><polyline points="9,4 12,7 9,10" />
                   </svg>

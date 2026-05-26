@@ -57,7 +57,7 @@ export function useArticles(
         ? `&categories=${categories.join(",")}`
         : "";
 
-    fetch(`/api/articles?country=${countryCode}&window=${timeWindow}${catParam}&limit=10`)
+    fetch(`/api/articles?country=${countryCode}&window=${timeWindow}${catParam}&limit=30`)
       .then((res) => res.json())
       .then((data: { articles?: ApiArticle[] }) => {
         if (!active) return;

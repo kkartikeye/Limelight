@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import Link from "next/link";
 import { useArticles } from "@/lib/hooks/use-articles";
 import { useMapStore } from "@/lib/stores/map-store";
 import { useWatchlistStore } from "@/lib/stores/watchlist-store";
@@ -32,10 +33,8 @@ function HeadlineRow({ article, index }: { article: Article; index: number }) {
         {String(index + 1).padStart(2, "0")}
       </span>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <a
-          href={article.url}
-          target="_blank"
-          rel="noopener noreferrer"
+        <Link
+          href={`/article/${article.id}`}
           style={{
             display: "block",
             fontFamily: DL.SANS,
@@ -50,7 +49,7 @@ function HeadlineRow({ article, index }: { article: Article; index: number }) {
           onMouseLeave={(e) => (e.currentTarget.style.color = DL.INK)}
         >
           {article.headline}
-        </a>
+        </Link>
         <div style={{
           display: "flex", alignItems: "center", gap: 8,
           marginTop: 5, fontSize: 11, color: DL.DIM, fontFamily: DL.SANS,

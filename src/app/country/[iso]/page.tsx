@@ -9,6 +9,7 @@ import { useWatchlistStore } from "@/lib/stores/watchlist-store";
 import { DL } from "@/lib/design-tokens";
 import { ALL_CATEGORIES } from "@/lib/stores/map-store";
 import { relativeTime } from "@/lib/utils/time";
+import { countryName as isoToName } from "@/lib/utils/countries";
 import type { Article } from "@/lib/types/article";
 
 interface PageProps {
@@ -57,7 +58,7 @@ export default function CountryPage({ params, searchParams }: PageProps) {
 
   const scoreEntry = scores?.[iso];
   const score = scoreEntry?.score ?? 0;
-  const countryName = nameParam ?? iso;
+  const displayName = nameParam ?? isoToName(iso);
   const watched = isWatched(iso);
 
   // Group articles by category
@@ -89,7 +90,7 @@ export default function CountryPage({ params, searchParams }: PageProps) {
           Today
         </Link>
         <span>·</span>
-        <span style={{ color: DL.INK, fontWeight: 600 }}>{countryName}</span>
+        <span style={{ color: DL.INK, fontWeight: 600 }}>{displayName}</span>
         <span style={{ marginLeft: "auto", fontFamily: DL.MONO, fontSize: 11, letterSpacing: 0.08 }}>
           {isLive ? "Live coverage" : ""}
         </span>
@@ -106,7 +107,7 @@ export default function CountryPage({ params, searchParams }: PageProps) {
               fontFamily: DL.DISPLAY, fontSize: 100, fontWeight: 400,
               letterSpacing: -3.5, lineHeight: 0.85, color: DL.INK,
             }}>
-              {countryName}
+              {displayName}
             </div>
             <div style={{ paddingBottom: 12, display: "flex", flexDirection: "column", gap: 4 }}>
               <span style={{ fontFamily: DL.MONO, fontSize: 11, color: DL.DIM, letterSpacing: 0.08 }}>
@@ -198,7 +199,7 @@ export default function CountryPage({ params, searchParams }: PageProps) {
               All coverage · grouped by category
             </span>
             <button
-              onClick={() => toggleWatch(iso, countryName)}
+              onClick={() => toggleWatch(iso, displayName)}
               style={{
                 display: "inline-flex", alignItems: "center", gap: 5,
                 color: watched ? DL.CORAL : DL.DIM, background: "none",
