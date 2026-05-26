@@ -32,6 +32,7 @@ interface HeatmapResponse {
 export interface ScoresResult {
   scores: ScoresMap | null;
   isLoading: boolean;
+  isMock: boolean;
   lastUpdated: Date | null;
   nextRefreshIn: number;
   isAutoRefreshing: boolean;
@@ -143,6 +144,8 @@ export function useScores(): ScoresResult {
   }, []);
 
   // ── Build the final scores map (API → ScoresMap, with mock fallback) ────────
+  const usingMock = !apiScores || Object.keys(apiScores).length === 0;
+
   const scores = useMemo<ScoresMap | null>(() => {
     if (filters.categories.length === 0) return {};
 
@@ -158,7 +161,7 @@ export function useScores(): ScoresResult {
       return out;
     }
 
-    // Mock fallback
+    // Mock fallback — data is illustrative, not live
     const out: ScoresMap = {};
     for (const s of mockScores) {
       out[s.code] = {
@@ -172,5 +175,5 @@ export function useScores(): ScoresResult {
 
   const isAutoRefreshing = filters.categories.length > 0;
 
-  return { scores, isLoading, lastUpdated, nextRefreshIn, isAutoRefreshing };
+  return { scores, isLoading, isMock: usingMock, lastUpdated, nextRefreshIn, isAutoRefreshing };
 }

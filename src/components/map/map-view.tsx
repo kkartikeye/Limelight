@@ -11,6 +11,7 @@ import { useWatchlistStore } from "@/lib/stores/watchlist-store";
 import FilterBar from "@/components/filters/filter-bar";
 import StarToggle from "@/components/ui/star-toggle";
 import WatchlistWidget from "@/components/ui/watchlist-widget";
+import HeatLegend from "@/components/ui/heat-legend";
 import MapLoader from "@/components/ui/map-loader";
 import { useScores } from "@/lib/hooks/use-scores";
 import { usePins } from "@/lib/hooks/use-pins";
@@ -100,7 +101,7 @@ export default function MapView() {
   const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
 
-  const { scores, isLoading, lastUpdated, nextRefreshIn, isAutoRefreshing } = useScores();
+  const { scores, isLoading, isMock, lastUpdated, nextRefreshIn, isAutoRefreshing } = useScores();
   const { pinsGeoJson } = usePins();
 
   // Stable ref so click/hover handlers (registered once) always see latest scores
@@ -286,12 +287,14 @@ export default function MapView() {
       {mapLoaded && (
         <FilterBar
           isLoading={isLoading}
+          isMock={isMock}
           lastUpdated={lastUpdated}
           nextRefreshIn={nextRefreshIn}
           isAutoRefreshing={isAutoRefreshing}
         />
       )}
       {mapLoaded && <StarToggle onToggle={handleStarToggle} />}
+      {mapLoaded && <HeatLegend />}
       {mapLoaded && (
         <WatchlistWidget
           scores={scores}

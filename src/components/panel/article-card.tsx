@@ -27,9 +27,14 @@ interface ArticleCardProps {
 export default function ArticleCard({ article }: ArticleCardProps) {
   return (
     <div className="flex flex-col gap-1.5 border-b border-white/10 py-3 last:border-0">
-      <p className="line-clamp-2 text-sm font-medium leading-snug text-white">
+      <a
+        href={article.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="line-clamp-2 text-sm font-medium leading-snug text-white hover:text-blue-300 transition-colors"
+      >
         {article.headline}
-      </p>
+      </a>
       <div className="flex items-center gap-2 text-xs text-gray-400">
         <span
           className={`h-2 w-2 flex-shrink-0 rounded-full ${TIER_COLOR[article.credibilityTier]}`}

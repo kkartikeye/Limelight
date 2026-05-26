@@ -31,6 +31,7 @@ function relativeTime(d: Date): string {
 
 interface FilterBarProps {
   isLoading?: boolean;
+  isMock?: boolean;
   lastUpdated?: Date | null;
   nextRefreshIn?: number;
   isAutoRefreshing?: boolean;
@@ -38,6 +39,7 @@ interface FilterBarProps {
 
 export default function FilterBar({
   isLoading = false,
+  isMock = false,
   lastUpdated = null,
   nextRefreshIn = 90,
   isAutoRefreshing = false,
@@ -123,7 +125,7 @@ export default function FilterBar({
         </button>
 
         {/* Status row */}
-        {(isLoading || isAutoRefreshing || lastUpdated) && (
+        {(isLoading || isAutoRefreshing || lastUpdated || isMock) && (
           <>
             <div className="h-4 w-px bg-white/10" />
             {isLoading ? (
@@ -139,6 +141,13 @@ export default function FilterBar({
                   <path d="M12 2a10 10 0 0 1 10 10" />
                 </svg>
                 Updating…
+              </span>
+            ) : isMock ? (
+              <span
+                className="flex items-center gap-1 rounded border border-amber-700/40 bg-amber-900/30 px-1.5 py-0.5 text-[10px] font-medium text-amber-500/80"
+                title="No live data yet — showing illustrative sample scores"
+              >
+                Demo data
               </span>
             ) : isAutoRefreshing ? (
               <span className="flex items-center gap-1.5 text-[10px] text-gray-500">
