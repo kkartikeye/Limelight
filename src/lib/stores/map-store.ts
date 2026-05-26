@@ -37,9 +37,6 @@ interface MapState {
   selectedCountryScore: number;
   isPanelOpen: boolean;
 
-  // Hover
-  hoverCountry: string | null;
-
   // Filters
   filters: Filters;
 
@@ -49,7 +46,6 @@ interface MapState {
   // Actions
   selectCountry: (code: string, name: string, score: number) => void;
   clearSelection: () => void;
-  setHover: (code: string | null) => void;
   setTimeWindow: (tw: TimeWindow) => void;
   toggleCategory: (cat: Category) => void;
   setProjection: (p: Projection) => void;
@@ -60,8 +56,6 @@ export const useMapStore = create<MapState>()((set) => ({
   selectedCountryName: "",
   selectedCountryScore: 0,
   isPanelOpen: false,
-
-  hoverCountry: null,
 
   filters: {
     timeWindow: "24h",
@@ -75,8 +69,6 @@ export const useMapStore = create<MapState>()((set) => ({
 
   clearSelection: () =>
     set({ selectedCountry: null, selectedCountryName: "", selectedCountryScore: 0, isPanelOpen: false }),
-
-  setHover: (code) => set({ hoverCountry: code }),
 
   setTimeWindow: (tw) =>
     set((s) => ({ filters: { ...s.filters, timeWindow: tw } })),

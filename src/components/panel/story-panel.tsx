@@ -5,6 +5,7 @@ import { useArticles } from "@/lib/hooks/use-articles";
 import { useMapStore } from "@/lib/stores/map-store";
 import { useWatchlistStore } from "@/lib/stores/watchlist-store";
 import { DL } from "@/lib/design-tokens";
+import { relativeTime } from "@/lib/utils/time";
 import type { Article } from "@/lib/types/article";
 
 interface StoryPanelProps {
@@ -12,14 +13,6 @@ interface StoryPanelProps {
   countryName: string;
   score: number;
   onClose?: () => void;
-}
-
-function relativeTime(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const h = Math.floor(diff / 3_600_000);
-  if (h < 1) return "< 1h";
-  if (h < 24) return `${h}h`;
-  return `${Math.floor(h / 24)}d`;
 }
 
 function HeadlineRow({ article, index }: { article: Article; index: number }) {

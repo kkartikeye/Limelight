@@ -10,7 +10,6 @@ const newsreader = Newsreader({
   style: ["normal", "italic"],
   variable: "--font-display",
   display: "swap",
-  axes: ["opsz"],
 });
 
 const manrope = Manrope({

@@ -3,17 +3,9 @@
 import { useMapStore, ALL_CATEGORIES } from "@/lib/stores/map-store";
 import type { TimeWindow, Category } from "@/lib/stores/map-store";
 import { DL } from "@/lib/design-tokens";
+import { relativeTimeSince } from "@/lib/utils/time";
 
 const TIME_WINDOWS: TimeWindow[] = ["1h", "6h", "24h", "7d", "30d"];
-
-function relativeTime(d: Date): string {
-  const mins = Math.floor((Date.now() - d.getTime()) / 60_000);
-  if (mins < 1) return "just now";
-  if (mins === 1) return "1 min ago";
-  if (mins < 60) return `${mins} min ago`;
-  const hrs = Math.floor(mins / 60);
-  return hrs === 1 ? "1 hr ago" : `${hrs} hrs ago`;
-}
 
 interface FilterBarProps {
   isLoading?: boolean;
@@ -135,7 +127,7 @@ export default function FilterBar({
             {nextRefreshIn > 0 && <span style={{ color: DL.DIM_2 }}>· {nextRefreshIn}s</span>}
           </span>
         ) : lastUpdated ? (
-          <span>↻ {relativeTime(lastUpdated)}</span>
+          <span>↻ {relativeTimeSince(lastUpdated)}</span>
         ) : null}
       </div>
     </div>

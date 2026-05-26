@@ -4,6 +4,7 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import Header from "@/components/ui/header";
 import { DL } from "@/lib/design-tokens";
+import { relativeTime } from "@/lib/utils/time";
 
 interface ApiArticle {
   id: string;
@@ -19,14 +20,6 @@ interface ApiArticle {
 
 interface PageProps {
   params: Promise<{ id: string }>;
-}
-
-function relativeTime(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const h = Math.floor(diff / 3_600_000);
-  if (h < 1) return "< 1h ago";
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
 }
 
 function readingTime(): string {

@@ -8,19 +8,12 @@ import { useArticles } from "@/lib/hooks/use-articles";
 import { useWatchlistStore } from "@/lib/stores/watchlist-store";
 import { DL } from "@/lib/design-tokens";
 import { ALL_CATEGORIES } from "@/lib/stores/map-store";
+import { relativeTime } from "@/lib/utils/time";
 import type { Article } from "@/lib/types/article";
 
 interface PageProps {
   params: Promise<{ iso: string }>;
   searchParams: Promise<{ name?: string }>;
-}
-
-function relativeTime(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const h = Math.floor(diff / 3_600_000);
-  if (h < 1) return "< 1h ago";
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
 }
 
 function ArticleRow({ article, summary }: { article: Article; summary?: string }) {
