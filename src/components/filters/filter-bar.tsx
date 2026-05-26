@@ -30,9 +30,11 @@ export default function FilterBar({
         background: DL.CARD,
         borderRadius: 18,
         padding: "9px 12px",
-        display: "inline-flex",
+        display: "flex",
+        flexWrap: "wrap",
         alignItems: "center",
         gap: 10,
+        maxWidth: "min(100%, 880px)",
         boxShadow: "0 10px 30px rgba(24,22,19,0.10), 0 2px 6px rgba(24,22,19,0.04)",
         border: `1px solid ${DL.RULE_2}`,
         fontFamily: DL.SANS,
@@ -70,12 +72,16 @@ export default function FilterBar({
       {/* Divider */}
       <div style={{ width: 1, height: 18, background: DL.RULE, flexShrink: 0 }} />
 
-      {/* Category pills */}
-      <div style={{ display: "flex", gap: 5, flexWrap: "nowrap" }}>
+      {/* Category pills — wrap allowed so they reflow on narrower viewports */}
+      <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
         {ALL_CATEGORIES.map((cat: Category) => {
           const active = filters.categories.includes(cat);
-          // Show short labels for space
-          const label = cat === "Humanitarian" ? "Hum." : cat === "Entertainment" ? "Ent." : cat;
+          // Shortened labels keep the bar compact at every viewport width
+          const SHORT: Record<string, string> = {
+            Humanitarian: "Hum.", Entertainment: "Ent.",
+            Economics: "Eco.", Technology: "Tech", Environment: "Env.",
+          };
+          const label = SHORT[cat] ?? cat;
           return (
             <button
               key={cat}

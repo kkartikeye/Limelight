@@ -17,16 +17,19 @@ export async function GET(req: NextRequest) {
   const hours = hoursMap[window] ?? 24;
   const since = new Date(Date.now() - hours * 3_600_000).toISOString();
 
+  // article_locations is the primary table — lat/lng/city/country are direct
+  // columns here. articles!inner joins only rows that have a matching article.
+  // referencedTable in .order() ensures the sort is applied on the joined table.
   let query = supabase
     .from("article_locations")
     .select(`
       latitude, longitude, city_name, country_code,
       articles!inner ( id, title, url, published_at, category )
     `)
-    .not("latitude", "is", null)
+    .not("latitude",  "is", null)
     .not("longitude", "is", null)
     .gte("articles.published_at", since)
-    .order("articles.published_at", { ascending: false })
+    .order("articles.published_at", { ascending: false, referencedTable: "articles" })
     .limit(500);
 
   if (filterCategories.length > 0) {
@@ -56,13 +59,13 @@ export async function GET(req: NextRequest) {
         coordinates: [row.longitude as number, row.latitude as number],
       },
       properties: {
-        id: article.id,
-        title: article.title,
-        url: article.url,
+        id:           article.id,
+        title:        article.title,
+        url:          article.url,
         published_at: article.published_at,
-        category: article.category ?? "Politics",
+        category:     article.category ?? "Politics",
         country_code: row.country_code,
-        city_name: row.city_name ?? null,
+        city_name:    row.city_name ?? null,
       },
     };
   });

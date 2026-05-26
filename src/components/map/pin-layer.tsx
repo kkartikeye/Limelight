@@ -3,7 +3,22 @@
 import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import type { PinsGeoJson, PinProperties } from "@/lib/hooks/use-pins";
-import { MapTokens, CATEGORY_COLORS } from "@/lib/design-tokens";
+import { DL } from "@/lib/design-tokens";
+
+// ─── Daylight coral ramp for clusters ─────────────────────────────────────────
+const CLUSTER_COLOR: mapboxgl.Expression = [
+  "step", ["get", "point_count"],
+  "#f0936b",   // apricot   (< 5)
+  5,  "#e26a4f",   // terracotta (5–14)
+  15, "#c93e2a",   // deep coral (15+)
+];
+
+const CLUSTER_RADIUS: mapboxgl.Expression = [
+  "step", ["get", "point_count"],
+  14,
+  5, 18,
+  15, 22,
+];
 
 interface PinLayerProps {
   map: mapboxgl.Map;
@@ -15,7 +30,6 @@ export default function PinLayer({ map, pinsGeoJson }: PinLayerProps) {
 
   // Add source + cluster layers once on mount
   useEffect(() => {
-    // Guard: already set up (React StrictMode double-invoke or HMR)
     if (map.getSource("pins")) return;
 
     map.addSource("pins", {
@@ -26,36 +40,23 @@ export default function PinLayer({ map, pinsGeoJson }: PinLayerProps) {
       clusterRadius: 45,
     });
 
-    // Cluster circles
+    // ── Cluster circles — coral ramp ──────────────────────────────────────────
     map.addLayer({
       id: "pin-clusters",
       type: "circle",
       source: "pins",
       filter: ["has", "point_count"],
       paint: {
-        "circle-color": [
-          "step", ["get", "point_count"],
-          "#f97316", 5,
-          "#ef4444", 15,
-          "#dc2626",
-        ],
-        "circle-radius": [
-          "step", ["get", "point_count"],
-          14, 5,
-          18, 15,
-          22,
-        ],
-        "circle-opacity": [
-          "interpolate", ["linear"], ["zoom"],
-          2, 0,
-          3.5, 0.85,
-        ],
-        "circle-stroke-width": 1.5,
-        "circle-stroke-color": "rgba(255,255,255,0.25)",
+        "circle-color":          CLUSTER_COLOR,
+        "circle-radius":         CLUSTER_RADIUS,
+        "circle-opacity":        ["interpolate", ["linear"], ["zoom"], 2, 0, 3.5, 0.88],
+        "circle-stroke-width":   2,
+        "circle-stroke-color":   "rgba(246,243,236,0.90)",   // cream — fits paper basemap
+        "circle-stroke-opacity": ["interpolate", ["linear"], ["zoom"], 2, 0, 3.5, 1],
       },
     });
 
-    // Cluster count label
+    // ── Cluster count label ───────────────────────────────────────────────────
     map.addLayer({
       id: "pin-cluster-count",
       type: "symbol",
@@ -63,54 +64,32 @@ export default function PinLayer({ map, pinsGeoJson }: PinLayerProps) {
       filter: ["has", "point_count"],
       layout: {
         "text-field": ["get", "point_count_abbreviated"],
-        "text-font": ["DIN Pro Medium", "Arial Unicode MS Regular"],
-        "text-size": 11,
+        "text-font":  ["DIN Offc Pro Medium", "Arial Unicode MS Regular"],
+        "text-size":  11,
       },
       paint: {
-        "text-color": "#fff",
-        "text-opacity": [
-          "interpolate", ["linear"], ["zoom"],
-          2, 0,
-          3.5, 1,
-        ],
+        "text-color":   "#fff8ee",   // warm cream — readable on coral clusters
+        "text-opacity": ["interpolate", ["linear"], ["zoom"], 2, 0, 3.5, 1],
       },
     });
 
-    // Individual pin dots (visible at zoom ≥ 6)
+    // ── Individual pin dots — single coral accent ─────────────────────────────
     map.addLayer({
       id: "pin-points",
       type: "circle",
       source: "pins",
       filter: ["!", ["has", "point_count"]],
       paint: {
-        "circle-color": [
-          "match", ["get", "category"],
-          "Conflict",      "#f87171",
-          "Humanitarian",  "#fb923c",
-          "Politics",      "#60a5fa",
-          "Economics",     "#34d399",
-          "Technology",    "#a78bfa",
-          "Environment",   "#2dd4bf",
-          "Sports",        "#fbbf24",
-          "Entertainment", "#f472b6",
-          "#9ca3af",
-        ],
-        "circle-radius": [
-          "interpolate", ["linear"], ["zoom"],
-          6, 4,
-          10, 7,
-        ],
-        "circle-opacity": [
-          "interpolate", ["linear"], ["zoom"],
-          5, 0,
-          6, 0.9,
-        ],
-        "circle-stroke-width": 1.5,
-        "circle-stroke-color": "rgba(0,0,0,0.5)",
+        "circle-color":          DL.CORAL,            // single accent — no per-category palette
+        "circle-radius":         ["interpolate", ["linear"], ["zoom"], 6, 4.5, 10, 7],
+        "circle-opacity":        ["interpolate", ["linear"], ["zoom"], 5, 0, 6, 0.88],
+        "circle-stroke-width":   1.5,
+        "circle-stroke-color":   "#f6f3ec",           // paper cream stroke — visible on dark areas
+        "circle-stroke-opacity": ["interpolate", ["linear"], ["zoom"], 5, 0, 6, 1],
       },
     });
 
-    // Cluster click → zoom in
+    // ── Cluster click → zoom in ───────────────────────────────────────────────
     const onClusterClick = (e: mapboxgl.MapMouseEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] }) => {
       const features = map.queryRenderedFeatures(e.point, { layers: ["pin-clusters"] });
       if (!features.length) return;
@@ -127,41 +106,72 @@ export default function PinLayer({ map, pinsGeoJson }: PinLayerProps) {
       );
     };
 
-    // Individual pin click → article popover
+    // ── Individual pin click → Daylight article popup ─────────────────────────
     const onPinClick = (e: mapboxgl.MapMouseEvent & { features?: mapboxgl.MapboxGeoJSONFeature[] }) => {
       if (!e.features?.length) return;
-      const props = e.features[0].properties as PinProperties;
+      const props  = e.features[0].properties as PinProperties;
       const coords = (e.features[0].geometry as GeoJSON.Point).coordinates as [number, number];
 
       popupRef.current?.remove();
 
-      const color    = CATEGORY_COLORS[props.category] ?? "#9ca3af";
-      const location = props.city_name ?? props.country_code;
+      const location  = props.city_name ?? props.country_code;
       const published = new Date(props.published_at).toLocaleDateString(undefined, {
         month: "short", day: "numeric",
       });
-      const { popup: p } = MapTokens;
 
-      popupRef.current = new mapboxgl.Popup({ closeButton: true, maxWidth: "290px", className: "limelight-popup" })
+      // ── Popup HTML — Daylight tokens, Manrope + IBM Plex Mono ──────────────
+      // The .limelight-popup CSS class in globals.css handles the card chrome
+      // (background, border, border-radius, shadow). We only style the content.
+      popupRef.current = new mapboxgl.Popup({
+        closeButton: true,
+        maxWidth: "290px",
+        className: "limelight-popup",
+        offset: 10,
+      })
         .setLngLat(coords)
         .setHTML(`
-          <div style="font-family:system-ui,sans-serif;">
-            <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
-              <span style="background:${color};color:#000;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;letter-spacing:0.02em;">${props.category}</span>
-              <span style="color:${p.textMuted};font-size:10px;">${location} · ${published}</span>
+          <div style="font-family:'Manrope','IBM Plex Sans',system-ui,sans-serif;">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:9px;">
+              <span style="
+                background:#fff0ea;color:#e0573c;border:1px solid #fac7b8;
+                font-family:'IBM Plex Mono',monospace;
+                font-size:9px;font-weight:700;
+                padding:2px 7px;border-radius:99px;letter-spacing:0.06em;
+                text-transform:uppercase;
+              ">${props.category}</span>
+              <span style="
+                color:#7a7568;font-size:10px;
+                font-family:'IBM Plex Mono',monospace;
+                letter-spacing:0.04em;
+              ">${location} · ${published}</span>
             </div>
-            <p style="margin:0 0 10px;font-size:13px;font-weight:500;line-height:1.45;color:${p.text};">${props.title}</p>
+            <p style="
+              margin:0 0 11px;font-size:13px;font-weight:500;
+              line-height:1.40;color:#181613;
+            ">${props.title}</p>
             <a href="${props.url}" target="_blank" rel="noopener noreferrer"
-              style="font-size:11px;color:${p.link};text-decoration:none;font-weight:500;">Read article →</a>
+              style="
+                display:inline-flex;align-items:center;gap:4px;
+                font-size:11px;color:#e0573c;
+                text-decoration:none;font-weight:600;
+                letter-spacing:0.01em;
+              ">
+              Read at source
+              <svg width="10" height="10" viewBox="0 0 14 14" fill="none"
+                stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+                <line x1="2" y1="7" x2="12" y2="7"/>
+                <polyline points="9,4 12,7 9,10"/>
+              </svg>
+            </a>
           </div>
         `)
         .addTo(map);
     };
 
-    const onClusterEnter  = () => { map.getCanvas().style.cursor = "pointer"; };
-    const onClusterLeave  = () => { map.getCanvas().style.cursor = ""; };
-    const onPinEnter      = () => { map.getCanvas().style.cursor = "pointer"; };
-    const onPinLeave      = () => { map.getCanvas().style.cursor = ""; };
+    const onClusterEnter = () => { map.getCanvas().style.cursor = "pointer"; };
+    const onClusterLeave = () => { map.getCanvas().style.cursor = ""; };
+    const onPinEnter     = () => { map.getCanvas().style.cursor = "pointer"; };
+    const onPinLeave     = () => { map.getCanvas().style.cursor = ""; };
 
     map.on("click",      "pin-clusters", onClusterClick);
     map.on("click",      "pin-points",   onPinClick);

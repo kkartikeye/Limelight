@@ -7,7 +7,7 @@ export const revalidate = 0;
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
   const country = searchParams.get("country");
-  const limit = Math.min(parseInt(searchParams.get("limit") ?? "10", 10), 50);
+  const limit = Math.min(parseInt(searchParams.get("limit") ?? "30", 10), 50);
   const window = searchParams.get("window") ?? "24h";
   const categoriesParam = searchParams.get("categories");
   const filterCategories = categoriesParam ? categoriesParam.split(",").filter(Boolean) : [];
@@ -22,23 +22,25 @@ export async function GET(req: NextRequest) {
   const hours = hoursMap[window] ?? 24;
   const since = new Date(Date.now() - hours * 3_600_000).toISOString();
 
-  // Start from articles so the published_at filter works as a plain column filter.
-  // article_locations!inner ensures we only get articles tagged to this country.
+  // Query from article_locations so country_code and is_primary are direct column
+  // filters — avoids the Supabase JS v2 dot-notation ambiguity on joined tables.
+  // articles!inner enforces an INNER JOIN so only located articles are returned.
   let query = supabase
-    .from("articles")
+    .from("article_locations")
     .select(`
-      id, title, url, published_at, category, severity,
-      sources ( name, domain, credibility ),
-      article_locations!inner ( country_code, is_primary )
+      articles!inner (
+        id, title, url, published_at, category, severity,
+        sources ( name, domain, credibility )
+      )
     `)
-    .eq("article_locations.country_code", country)
-    .eq("article_locations.is_primary", true)
-    .gte("published_at", since)
-    .order("published_at", { ascending: false })
+    .eq("country_code", country)
+    .eq("is_primary", true)
+    .gte("articles.published_at", since)
+    .order("articles.published_at", { ascending: false, referencedTable: "articles" })
     .limit(limit);
 
   if (filterCategories.length > 0) {
-    query = query.in("category", filterCategories);
+    query = query.in("articles.category", filterCategories);
   }
 
   const { data, error } = await query;
@@ -47,7 +49,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  type Row = {
+  type ArticleRow = {
     id: string;
     title: string;
     url: string;
@@ -57,20 +59,25 @@ export async function GET(req: NextRequest) {
     sources: { name: string; domain: string; credibility: number } | null;
   };
 
+  type LocationRow = {
+    articles: ArticleRow;
+  };
+
   const articles = (data ?? []).map((row) => {
-    const r = row as unknown as Row;
+    const r  = row as unknown as LocationRow;
+    const a  = r.articles;
     return {
-      id: r.id,
-      headline: r.title,
-      url: r.url,
-      publishedAt: r.published_at,
-      category: r.category,
-      severity: r.severity,
-      source: r.sources?.name ?? r.sources?.domain ?? "Unknown",
-      domain: r.sources?.domain ?? "",
+      id:       a.id,
+      headline: a.title,
+      url:      a.url,
+      publishedAt: a.published_at,
+      category: a.category,
+      severity: a.severity,
+      source:   a.sources?.name ?? a.sources?.domain ?? "Unknown",
+      domain:   a.sources?.domain ?? "",
       credibilityTier:
-        (r.sources?.credibility ?? 0) >= 0.85 ? "high" :
-        (r.sources?.credibility ?? 0) >= 0.6  ? "medium" : "low",
+        (a.sources?.credibility ?? 0) >= 0.85 ? "high" :
+        (a.sources?.credibility ?? 0) >= 0.6  ? "medium" : "low",
     };
   });
 
