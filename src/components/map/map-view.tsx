@@ -6,13 +6,11 @@ import HeatLayer from "./heat-layer";
 import PinLayer from "./pin-layer";
 import Tooltip from "./tooltip";
 import MapLoader from "@/components/ui/map-loader";
-import ViewToggle from "@/components/ui/view-toggle";
 import { useMapStore } from "@/lib/stores/map-store";
 import { useWatchlistStore } from "@/lib/stores/watchlist-store";
 import { useScores } from "@/lib/hooks/use-scores";
 import { usePins } from "@/lib/hooks/use-pins";
 import type { TopCategory } from "@/lib/types/scores";
-import type { Projection } from "@/lib/stores/map-store";
 
 const INITIAL_VIEW_STATE = {
   longitude: 10,
@@ -29,14 +27,6 @@ const FOG_DAYLIGHT: Parameters<mapboxgl.Map["setFog"]>[0] = {
   "star-intensity": 0,
 };
 
-// Flat view: minimal fog so sky doesn't show
-const FOG_FLAT: Parameters<mapboxgl.Map["setFog"]>[0] = {
-  color:            "#f6f3ec",
-  "high-color":     "#f6f3ec",
-  "space-color":    "#f6f3ec",
-  "horizon-blend":  0.0,
-  "star-intensity": 0,
-};
 
 interface HoverInfo {
   name: string;
@@ -70,32 +60,9 @@ export default function MapView({ onSelectCountry }: MapViewProps) {
   const scoresRef = useRef(scores);
   scoresRef.current = scores;
 
-  const {
-    selectedCountry, selectCountry, clearSelection,
-    projection, setProjection,
-  } = useMapStore();
+  const { selectedCountry, selectCountry, clearSelection } = useMapStore();
   const { watched } = useWatchlistStore();
   const watchedIsos = useMemo(() => watched.map((w) => w.iso), [watched]);
-
-  // ── Read projection preference from localStorage on mount ──────────────────
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("limelight:projection") as Projection | null;
-      if (saved === "globe" || saved === "naturalEarth") setProjection(saved);
-    } catch { /* SSR / storage unavailable */ }
-  }, [setProjection]);
-
-  // ── Sync projection to Mapbox + localStorage when it changes ───────────────
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !mapLoaded) return;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    map.setProjection({ name: projection } as any);
-    map.setFog(projection === "globe" ? FOG_DAYLIGHT : FOG_FLAT);
-    try { localStorage.setItem("limelight:projection", projection); } catch { /* ok */ }
-  }, [projection, mapLoaded]);
-
-  const handleProjectionChange = (p: Projection) => setProjection(p);
 
   // ── Initialise Mapbox ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -118,20 +85,10 @@ export default function MapView({ onSelectCountry }: MapViewProps) {
       setMapLoaded(true);
       setContainerWidth(containerRef.current?.offsetWidth ?? 0);
 
-      // Globe projection + Daylight fog
+      // Globe projection + Daylight fog (always globe for now)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       map.setProjection({ name: "globe" } as any);
       map.setFog(FOG_DAYLIGHT);
-
-      // Read saved projection preference immediately
-      try {
-        const saved = localStorage.getItem("limelight:projection") as Projection | null;
-        if (saved === "naturalEarth") {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          map.setProjection({ name: "naturalEarth" } as any);
-          map.setFog(FOG_FLAT);
-        }
-      } catch { /* ok */ }
 
       // ── Hover ────────────────────────────────────────────────────────────
       map.on("mousemove", "heat-fill", (e) => {
@@ -253,12 +210,7 @@ export default function MapView({ onSelectCountry }: MapViewProps) {
         />
       )}
 
-      {/* View toggle — top-right of map */}
-      {mapLoaded && (
-        <div className="absolute top-3 right-3 z-10">
-          <ViewToggle value={projection} onChange={handleProjectionChange} />
-        </div>
-      )}
+      {/* Projection toggle: deferred — globe only for now */}
     </div>
   );
 }
