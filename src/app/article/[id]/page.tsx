@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Header from "@/components/ui/header";
 import { DL } from "@/lib/design-tokens";
@@ -20,16 +20,16 @@ interface ApiArticle {
 }
 
 interface PageProps {
-  params: Promise<{ id: string }>;
+  params: { id: string };
   /**
    * Short query params encoded by StoryPanel's HeadlineRow as a fallback
    * so mock articles (not in Supabase) still render correctly.
    * h=headline, s=source, u=url, c=category, t=publishedAt, cc=countryCode
    */
-  searchParams: Promise<{
+  searchParams: {
     h?: string; s?: string; u?: string;
     c?: string; t?: string; cc?: string;
-  }>;
+  };
 }
 
 function readingTime(): string {
@@ -37,8 +37,9 @@ function readingTime(): string {
 }
 
 export default function ArticlePage({ params, searchParams }: PageProps) {
-  const { id } = use(params);
-  const fb = use(searchParams);   // fallback from URL params (mock articles)
+  const { id } = params;
+  // Destructure individually so useEffect deps are stable primitives
+  const { h: fbH, s: fbS, u: fbU, c: fbC, t: fbT, cc: fbCC } = searchParams;
 
   const [article, setArticle] = useState<ApiArticle | null>(null);
   const [loading, setLoading] = useState(true);
@@ -49,39 +50,38 @@ export default function ArticlePage({ params, searchParams }: PageProps) {
       .then((d) => {
         if (d.article) {
           setArticle(d.article);
-        } else if (fb.h) {
-          // API returned 404 but we have fallback data (mock article)
+        } else if (fbH) {
+          // API returned 404 but we have fallback data (e.g. mock article)
           setArticle({
             id,
-            headline: fb.h,
-            url: fb.u ?? "#",
-            publishedAt: fb.t ?? new Date().toISOString(),
-            category: fb.c ?? "Politics",
-            source: fb.s ?? "Unknown",
+            headline: fbH,
+            url: fbU ?? "#",
+            publishedAt: fbT ?? new Date().toISOString(),
+            category: fbC ?? "Politics",
+            source: fbS ?? "Unknown",
             domain: "",
             credibilityTier: "medium",
-            countryCode: fb.cc ?? null,
+            countryCode: fbCC ?? null,
           });
         }
       })
       .catch(() => {
-        // Network error — still try fallback
-        if (fb.h) {
+        if (fbH) {
           setArticle({
             id,
-            headline: fb.h,
-            url: fb.u ?? "#",
-            publishedAt: fb.t ?? new Date().toISOString(),
-            category: fb.c ?? "Politics",
-            source: fb.s ?? "Unknown",
+            headline: fbH,
+            url: fbU ?? "#",
+            publishedAt: fbT ?? new Date().toISOString(),
+            category: fbC ?? "Politics",
+            source: fbS ?? "Unknown",
             domain: "",
             credibilityTier: "medium",
-            countryCode: fb.cc ?? null,
+            countryCode: fbCC ?? null,
           });
         }
       })
       .finally(() => setLoading(false));
-  }, [id, fb]);  // fb is stable (resolved from Promise on mount)
+  }, [id, fbH, fbS, fbU, fbC, fbT, fbCC]);
 
   const displayCountry = article?.countryCode ? countryName(article.countryCode) : null;
 

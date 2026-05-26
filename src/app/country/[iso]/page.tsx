@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useMemo } from "react";
+import { useMemo } from "react";
 import Link from "next/link";
 import Header from "@/components/ui/header";
 import { useScores } from "@/lib/hooks/use-scores";
@@ -13,8 +13,8 @@ import { countryName as isoToName } from "@/lib/utils/countries";
 import type { Article } from "@/lib/types/article";
 
 interface PageProps {
-  params: Promise<{ iso: string }>;
-  searchParams: Promise<{ name?: string }>;
+  params: { iso: string };
+  searchParams: { name?: string };
 }
 
 function ArticleRow({ article, summary }: { article: Article; summary?: string }) {
@@ -49,8 +49,8 @@ function ArticleRow({ article, summary }: { article: Article; summary?: string }
 }
 
 export default function CountryPage({ params, searchParams }: PageProps) {
-  const { iso } = use(params);
-  const { name: nameParam } = use(searchParams);
+  const { iso } = params;
+  const { name: nameParam } = searchParams;
 
   const { scores } = useScores();
   const { articles, loading, isLive } = useArticles(iso, "24h", ALL_CATEGORIES);
