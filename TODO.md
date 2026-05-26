@@ -1,149 +1,153 @@
 # Limelight — Improvement Backlog
 
-Generated from the codebase audit on 2026-05-25 after the Daylight design
-implementation. Work through this in priority order; each section is roughly
-self-contained.
+Updated 2026-05-26. Items marked ✅ are complete. Remaining work is ordered by priority within each section.
 
 ---
 
-## 🗑️ Dead code to delete
+## ✅ Completed (this sprint)
 
-These files are not imported anywhere and can be removed without changing behavior:
-
-| File | Why it's dead |
+| Item | Commit |
 |---|---|
-| `src/components/panel/article-card.tsx` | Replaced by inline `HeadlineRow` in `story-panel.tsx`. Still on old dark Tailwind theme. |
-| `src/components/ui/watchlist-widget.tsx` | Removed from `map-view.tsx` during the Daylight refactor. Dark amber / `gray-950` palette, wrong for Daylight. |
-| `src/lib/hooks/use-color-scale.ts` | d3 color scale hook from the Deck.gl era. |
-| `src/lib/mock/color-utils.ts` | Deck.gl hex→RGBA converter. |
-
-Optional: `src/components/ui/view-toggle.tsx` — kept intentionally for the end of the project when we re-enable the globe/flat toggle. Leave it.
-
----
-
-## 🎨 Design inconsistencies
-
-### `pin-layer.tsx` — entire file is still pre-Daylight
-- Cluster circles: `#f97316` / `#ef4444` / `#dc2626` (vivid orange/red — clashes with cream paper)
-- Individual pins: 8 distinct category colors (red, blue, green, purple, teal, yellow, pink) — violates the single-coral-accent rule
-- Cluster stroke: `rgba(255,255,255,0.25)` — assumes dark background
-- Popup HTML: raw `system-ui` font inline style, not Daylight tokens
-- Pin stroke: `rgba(0,0,0,0.5)` — dark assumption
-
-**Fix**: pins should be coral `#e0573c` with cream stroke; clusters should follow the coral heatmap ramp; popup HTML should use DL tokens.
+| Delete 4 dead files | `ff7bdc1` |
+| Extract `relativeTime` / `relativeTimeSince` to `src/lib/utils/time.ts` | `ff7bdc1` |
+| Remove dead `hoverCountry` / `setHover` from map-store | `ff7bdc1` |
+| Bump vercel.json cron to hourly | `ff7bdc1` |
+| `src/lib/utils/countries.ts` ISO3→name, wired into all pages | `3a8ed26` |
+| `/article/[id]` routing in StoryPanel; article metadata as URL fallback params | `3a8ed26` |
+| `use-articles` limit bumped to 30 | `3a8ed26` |
+| `/saved` watchlist page | `3a8ed26` |
+| `/regions` and `/topics` stub pages | `3a8ed26` |
+| Article reader: fix API route (wrong columns), fallback from URL params | `5cbdc4f` |
+| Country name: dynamic font size in StoryPanel, isoToName on auto-select | `5cbdc4f` |
+| Globe as centrepiece: hero text moved to map overlay | `5cbdc4f` |
+| Intensity legend: vertical frosted glass, repositioned to right-mid | `5cbdc4f` |
+| Fix Next.js 14 params error (`use()` on plain objects) | `8b5ab47` |
+| `pin-layer.tsx` full Daylight palette rewrite | `98978f8` |
+| Filter-bar: `flexWrap: wrap`, shorter category labels | `98978f8` |
+| Supabase join filter: restructure `/api/articles` + `/api/pins` | `98978f8` |
 
 ---
 
-## 🔧 Functional issues
+## 🔧 Remaining functional issues
 
-### 1. `relativeTime` is copy-pasted 5×
-Defined separately in:
-- `src/components/panel/story-panel.tsx`
-- `src/app/country/[iso]/page.tsx`
-- `src/app/article/[id]/page.tsx`
-- `src/components/filters/filter-bar.tsx` (Date-based variant)
-- `src/components/panel/article-card.tsx` (dead — will go away)
+### 1. Ocean click clears selection unexpectedly
+Clicking empty ocean calls `clearSelection()` and snaps back to the auto-selected top country. Misclicks near small island nations are jarring.
 
-**Fix**: create `src/lib/utils/time.ts` exporting `relativeTime(iso: string)` and `relativeTimeSince(date: Date)`. Import everywhere.
+**Fix**: only clear on an explicit close/back action (the × button or Escape), not on any ocean click.
 
-### 2. Ingest cron is once per day
-`vercel.json` has `"schedule": "0 0 * * *"` — midnight UTC daily. For a live news map this should be at least hourly. Bump to `"0 * * * *"` (every hour) or `"*/30 * * * *"` (every 30 min) if on Pro.
+### 2. StoryPanel auto-selection has no label
+When no country is explicitly clicked, the panel silently shows the highest-scored country. Users can't distinguish auto-select from their own selection.
 
-### 3. Dead store state in `map-store.ts`
-`hoverCountry: string | null` and `setHover` are defined but never called anywhere — hover is managed entirely by local state in `map-view.tsx`. Remove from the store.
+**Fix**: add a small eyebrow ("Trending now" or "Most coverage today") above the country name when `!isPanelOpen`.
 
-### 4. `use-articles` limit hardcoded to 10
-The country page groups *all* articles by category, but `use-articles.ts` always passes `limit=10`. If a country has 40 articles in the window you only see 10. Bump default to 30, or make it a parameter.
+### 3. Scroll-zoom has no discovery hint
+Scroll zoom is disabled until the first click. New users may not discover it.
 
-### 5. Supabase join filter in `/api/articles` may be broken
-Uses `.eq("article_locations.country_code", country)` — in Supabase JS v2 this dot-notation on a joined table may silently fail and return all articles regardless of country. This would explain why `useArticles` falls back to mock for many ISOs.
-
-**Fix**: use the explicit `{ referencedTable: "article_locations" }` filter form, or restructure to query `article_locations` as the parent table with an inner join to `articles`.
-
-Same issue applies to `/api/pins` (filters `articles.published_at` and `articles.category` on a join).
-
-### 6. Country name displays as ISO code
-Navigating to `/country/USA` without a `?name=United+States` query string shows "USA" as the 100px hero headline. Happens whenever you arrive from an article breadcrumb or a direct link.
-
-**Fix**: create `src/lib/utils/countries.ts` with an ISO3→display name lookup (~60 most-covered countries should cover 95%+ of the cases; fallback to the ISO code).
-
-### 7. StoryPanel headlines link to external source
-`article.url` opens the publisher directly. Design spec says clicking a headline should route to `/article/[id]` (our reader). Our reader screen is currently unreachable from the main flow.
-
-**Fix**: change `<a href={article.url}>` to `<Link href={`/article/${article.id}`}>` in `HeadlineRow`. The reader screen already shows a "Read at source" CTA.
+**Fix**: show a subtle one-time tooltip on first hover: "Click map to enable scroll zoom".
 
 ---
 
-## ❌ Missing pages / broken nav
+## ⚡ UX / design improvements
 
-The header and bottom tab bar link to routes that don't exist:
+### 1. `/regions` and `/topics` pages — real content
+Currently "coming soon" placeholders. Regions page should group countries by continent with a mini heat indicator per region. Topics page should link to filtered country lists per category.
 
-- `/regions` → 404 (Today/Regions/Topics/Saved nav item)
-- `/topics` → 404
-- `/saved` → 404 (also the highest-value one — watchlist lives here)
+### 2. Article reader — richer content
+The reader page currently shows only article metadata and links out. Possible additions:
+- Related articles from the same country (reuse `useArticles`)
+- Mini country intensity chip linking back to `/country/[iso]`
+- Estimated credibility tier badge (already in the data)
 
-**Fix**: at minimum stub each one. `/saved` should render the watched countries from `useWatchlistStore`. The other two can be a "coming soon" placeholder until we have content.
+### 3. Country page — hero article link routing
+The hero article `<a href={heroArticle.url}>` links directly to the source. Should route through `/article/[id]` like the StoryPanel does (consistent internal routing).
 
----
-
-## ⚡ UX improvements
-
-### 1. Filter bar overflows on narrow screens
-`flexWrap: "nowrap"` with 8 category pills + 5 time windows clips on viewports under ~1280px. Even on 1440px laptops with the sidebar open, it crowds.
-
-**Fix**: switch to `flexWrap: "wrap"` with max-width, or collapse categories behind a "Filter" popover that opens upward.
-
-### 2. Ocean click clears selection
-Clicking empty ocean calls `clearSelection()` and drops back to the auto-selected top country. Misclicks near small countries are jarring.
-
-**Fix**: only clear on an explicit back/close action. Or shrink the "outside any country" click area to require a much larger margin.
-
-### 3. Article breadcrumb shows ISO code
-Same root cause as #6 above — the article reader breadcrumb shows `← GBR` instead of `← United Kingdom`.
-
-### 4. StoryPanel auto-selection has no label
-When no country is clicked, the panel silently shows the top-scored country. Users can't tell auto-selected vs. their explicit choice.
-
-**Fix**: add a small eyebrow ("Trending now" or "Most coverage today") when in auto-select mode.
-
-### 5. Scroll zoom has no discovery hint
-Map scroll zoom is disabled until first click. A small "click map to zoom" affordance on first hover would help.
+### 4. `/saved` page — live pulse on active countries
+Countries with score > 60 could show a pulsing coral dot next to the card header (same signal as the map halo). Makes the watchlist feel live.
 
 ---
 
-## 🏗️ Architecture / new utilities
+## 🏗️ Architecture improvements
 
-Create these shared modules:
+### 1. Supabase RLS & server-side API keys
+Currently using the anon key for all Supabase calls from API routes. Production should use the service-role key server-side (never exposed to the client).
 
-- `src/lib/utils/time.ts` — `relativeTime`, `relativeTimeSince`
-- `src/lib/utils/countries.ts` — ISO3 → display name (Iso3CountryName map)
-- Consider `src/lib/utils/category-icons.ts` if we add category iconography per the design
+### 2. Error boundaries
+No React error boundaries anywhere. A failed Supabase call in `useScores` silently shows mock data. Add an `<ErrorBoundary>` at the page level and a toast notification for API failures.
+
+### 3. SWR or React Query
+`useScores`, `useArticles`, `usePins` are all manual `useEffect` + `fetch` + `useState` patterns. Migrating to SWR or React Query would give deduplication, background refresh, cache invalidation, and loading/error states for free.
+
+### 4. Typed Supabase client
+Generate types from the DB schema (`supabase gen types typescript`) and replace all `as unknown as Row` casts with the generated types. Eliminates runtime cast errors.
+
+### 5. Image optimisation for source favicons
+Article cards could show source favicons (DuckDuckGo favicon API or direct `https://domain/favicon.ico`). Should use Next.js `<Image>` with `unoptimized` for external URLs.
 
 ---
 
-## Priority order for the next session
+## 🗓️ Phase 4 and beyond
 
-### Quick wins (≤ 1 hour total)
-1. Delete 4 dead files (`article-card`, `watchlist-widget`, `use-color-scale`, `color-utils`)
-2. Extract `relativeTime` to `src/lib/utils/time.ts`, fix all import sites
-3. Remove dead `hoverCountry` / `setHover` from `map-store`
-4. Fix `vercel.json` cron to hourly
+### Phase 4 — Search & Discovery
 
-### Medium effort (1–2 hours each)
-5. Create `src/lib/utils/countries.ts` ISO3→name lookup, wire into country + article pages
-6. Wire `/article/[id]` routing in StoryPanel headlines
-7. Bump `use-articles` limit to 30
-8. Create `/saved` page (watchlist view)
-9. Stub `/regions` and `/topics` pages
+**Goal**: users can find articles by keyword, not just by country.
 
-### Bigger work (2–4 hours each)
-10. Rewrite `pin-layer.tsx` for Daylight palette (coral pins, Daylight popup HTML, coral cluster ramp)
-11. Fix `filter-bar` overflow handling on narrower viewports
-12. Investigate + fix Supabase join filter in `/api/articles` and `/api/pins`
-13. Add "click to interact" scroll-zoom hint on map
+| Feature | Description |
+|---|---|
+| **Global search** | Full-text search across `articles.title` + `articles.body_summary`. Supabase supports `fts` (tsvector) natively. Add a `search_vector` column to `articles`, trigger to populate it, and a `/api/search?q=` endpoint. Wire the mobile search icon in the header. |
+| **Search results page** | `/search?q=ukraine+drone` → ranked list of articles grouped by country. Click article → reader. Click country chip → country page. |
+| **Keyword alert subscriptions** | Users save search terms. When new articles matching a term ingest, send a push notification (Web Push API) or email (Resend). Requires auth (Phase 5). |
+| **Trending searches** | Track search frequency in a `search_log` table. Surface top-5 trending terms on the Topics page. |
 
-### Deferred (project-end polish)
-- Re-enable the globe / flat-earth `ViewToggle` (`view-toggle.tsx` and `map-store` projection state are already there waiting)
-- Search functionality behind the mobile search icon
-- Real category iconography
-- **Direct-to-source headline links**: decide whether StoryPanel headlines should skip the internal reader and open the publisher URL directly in a new tab (`<a href={article.url} target="_blank">`). Current flow: headline → `/article/[id]` reader → "Read full article" CTA. The reader adds future value (related articles, save/share, country map panel) but adds a click. Revisit once the reader page has more content.
+### Phase 5 — Auth & Personalisation
+
+**Goal**: persistent identity, cross-device watchlists, personalised feed.
+
+| Feature | Description |
+|---|---|
+| **Auth** | Supabase Auth (magic link + Google OAuth). No passwords. Session via `@supabase/ssr`. |
+| **Server-side watchlist** | Move `useWatchlistStore` from localStorage to a `user_watchlists` Supabase table. Sync on login. |
+| **Personalised "For You" feed** | Weight articles by watchlist countries + category preferences. Separate feed on the "Today" page below the map. |
+| **Reading history** | Track article views in `article_reads` (user_id, article_id, ts). Power "already read" dimming on headlines. |
+| **Notification preferences** | Per-user settings: email digest frequency, push alert threshold (e.g. only alert when intensity > 80). |
+
+### Phase 6 — Sub-country granularity
+
+**Goal**: zoom in to city/region level.
+
+| Feature | Description |
+|---|---|
+| **Admin-1 regions layer** | At zoom ≥ 5, swap the country GeoJSON source for a Natural Earth admin-1 regions source. Architecture already supports it (`mergeGeoJsonWithScores` is source-agnostic). |
+| **City-level heat** | Aggregate `article_locations.city_name` scores into a `city_scores` table (same pipeline as `region_scores`). Render as a circle layer at zoom ≥ 6, sized by intensity. |
+| **Region detail page** | `/region/[id]` — mirrors `/country/[iso]` but scoped to a sub-national region. |
+| **Cross-border stories** | Articles tagged to multiple locations show a connection arc (Mapbox `line` layer between centroids). |
+
+### Phase 7 — Data quality & ingestion
+
+**Goal**: richer, more accurate coverage.
+
+| Feature | Description |
+|---|---|
+| **Multi-source ingestion** | Add MediaStack, NewsAPI, and The Guardian API alongside GDELT. Dedup by URL hash + title similarity (already specced). |
+| **NER geo-tagging** | Run spaCy + Mordecai3 on article bodies for precise city-level geo-tagging, replacing the coarse GDELT country codes. |
+| **Source credibility scoring** | Automate credibility scores using AllSides bias ratings + NewsGuard API. Currently hardcoded in the `sources` table. |
+| **Deduplication pipeline** | The BullMQ + Redis dedup queue from the architecture spec. Group reprints of the same AP/Reuters wire into a single canonical article with a reprint count. |
+| **Body summary extraction** | Store a 2-sentence AI-generated summary in `articles.body_summary` using Claude API. Surface in the article reader and search index. |
+
+### Phase 8 — Monetisation & Scale
+
+| Feature | Description |
+|---|---|
+| **Pro tier** | Unlimited watchlist countries (free = 5), 30-min refresh (free = hourly), CSV export, API access. Stripe billing. |
+| **Embeds** | `<iframe>` or `<script>` embed for media organisations to put the map widget on their sites. |
+| **Public API** | REST API for developers: `/v1/scores`, `/v1/articles`, `/v1/search`. Rate-limited with API keys. |
+| **CDN & edge caching** | Move `/api/heatmap` response to Vercel Edge Config or R2 so the globe loads instantly. Score data can be 60s stale globally. |
+
+---
+
+## Deferred polish (project-end)
+
+- Re-enable globe / flat-earth `ViewToggle` (`view-toggle.tsx` + `map-store` projection state already in place)
+- Real category iconography (SVG icons per category, replacing text labels)
+- **Direct-to-source headline links**: decide whether StoryPanel headlines should skip the internal reader. Current flow: headline → `/article/[id]` → "Read at source" CTA. Revisit once the reader page has more content. (See `story-panel.tsx` `HeadlineRow`)
+- Dark mode / night theme (Limelight Midnight palette — inverse of Daylight)
+- Offline support / PWA manifest
