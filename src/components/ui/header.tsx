@@ -28,7 +28,7 @@ export default function Header({ active = "Today" }: HeaderProps) {
 
   return (
     <header
-      className="flex items-center justify-between shrink-0"
+      className="flex items-center justify-between shrink-0 header-root"
       style={{
         padding: "20px 44px 16px",
         borderBottom: "1px solid rgba(24,22,19,0.05)",
@@ -47,8 +47,8 @@ export default function Header({ active = "Today" }: HeaderProps) {
         </span>
       </Link>
 
-      {/* Nav + clock + sign-in */}
-      <div className="flex items-center gap-8">
+      {/* Nav + clock + sign-in (desktop only) */}
+      <div className="header-nav flex items-center gap-8">
         {/* Nav items */}
         <nav className="flex items-center gap-8">
           {NAV_ITEMS.map((item) => {
@@ -91,11 +91,13 @@ export default function Header({ active = "Today" }: HeaderProps) {
         <div style={{ width: 1, height: 16, background: "rgba(24,22,19,0.10)" }} />
 
         {/* Clock */}
-        <LiveClock />
+        <span className="header-clock">
+          <LiveClock />
+        </span>
 
         {/* Sign in */}
         <button
-          className="font-body"
+          className="header-signin font-body"
           style={{
             background: "#181613",
             color: "#f6f3ec",
@@ -111,6 +113,18 @@ export default function Header({ active = "Today" }: HeaderProps) {
           Sign in
         </button>
       </div>
+
+      {/* Mobile: search icon only */}
+      <button
+        className="mobile-only"
+        aria-label="Search"
+        style={{ background: "none", border: "none", cursor: "pointer", color: "#7a7568", padding: 4 }}
+      >
+        <svg width="18" height="18" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+          <circle cx="9.5" cy="9.5" r="6" />
+          <line x1="14.5" y1="14.5" x2="20" y2="20" />
+        </svg>
+      </button>
     </header>
   );
 }

@@ -78,6 +78,7 @@ export default function HeatLayer({
 }: HeatLayerProps) {
   const scoresRef = useRef<ScoresMap | null>(null);
   scoresRef.current = scores;
+  const rafRef = useRef<number>(0);
 
   // ── Add source + all layers once on mount ──────────────────────────────────
   useEffect(() => {
@@ -174,6 +175,7 @@ export default function HeatLayer({
     }, beforeLabel);
 
     // 7. Pulse halo — countries with score ≥ 70
+    //    Opacity is driven by a rAF loop below; start at 0.40
     map.addLayer({
       id: "heat-pulse-halo",
       type: "circle",
@@ -181,11 +183,12 @@ export default function HeatLayer({
       "source-layer": SOURCE_LAYER,
       filter: ["all", POLYGON_FILTER, [">=", ["coalesce", ["feature-state", "score"], 0], 70]],
       paint: {
-        "circle-radius":       8,
-        "circle-color":        "rgba(224,87,60,0)",
-        "circle-stroke-color": "rgba(224,87,60,0.30)",
-        "circle-stroke-width": 5,
-        "circle-blur":         0.5,
+        "circle-radius":         8,
+        "circle-color":          "rgba(224,87,60,0)",
+        "circle-stroke-color":   "#e0573c",
+        "circle-stroke-width":   5,
+        "circle-stroke-opacity": 0.40,
+        "circle-blur":           0.5,
       },
     });
 
@@ -306,6 +309,27 @@ export default function HeatLayer({
       isLoading ? MapTokens.fill.opacityLoading : MapTokens.fill.opacityGlobe,
     );
   }, [map, isLoading]);
+
+  // ── Coral pulse halo: 1.6s ease-in-out infinite alternate (0.40 ↔ 1.00) ──
+  useEffect(() => {
+    const PERIOD = 1600; // ms — matches design spec
+    const lo = 0.40, hi = 1.00;
+
+    function tick(ts: number) {
+      // Sine wave 0→1→0 over one period, mapped to [lo, hi]
+      const t = (Math.sin((ts / PERIOD) * Math.PI * 2 - Math.PI / 2) + 1) / 2;
+      const opacity = lo + t * (hi - lo);
+      try {
+        if (map.getLayer("heat-pulse-halo")) {
+          map.setPaintProperty("heat-pulse-halo", "circle-stroke-opacity", opacity);
+        }
+      } catch { /* map tearing down */ }
+      rafRef.current = requestAnimationFrame(tick);
+    }
+
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [map]);
 
   return null;
 }

@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import Header from "@/components/ui/header";
+import BottomTabBar from "@/components/ui/bottom-tab-bar";
 import MapView from "@/components/map/map-view";
 import FilterBar from "@/components/filters/filter-bar";
 import HeatLegend from "@/components/ui/heat-legend";
@@ -31,18 +32,18 @@ export default function Home() {
   const focusScore = isPanelOpen && selectedCountry ? selectedCountryScore : topCountry?.score ?? 0;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: DL.PAPER, overflow: "hidden" }}>
+    <div className="route-fade" style={{ display: "flex", flexDirection: "column", height: "100vh", background: DL.PAPER, overflow: "hidden" }}>
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <Header active="Today" />
 
       {/* ── Body ────────────────────────────────────────────────────────────── */}
-      <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
+      <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
 
         {/* ── Left: headline + map ─────────────────────────────────────────── */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, padding: "8px 44px 0", position: "relative" }}>
+        <div className="map-host" style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, padding: "8px 44px 0", position: "relative" }}>
 
-          {/* Hero text + view toggle row */}
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", paddingTop: 8 }}>
+          {/* Hero text — hidden on mobile to save space */}
+          <div className="desktop-only" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", paddingTop: 8 }}>
             <div style={{ maxWidth: 520 }}>
               {/* Coral eyebrow */}
               <div style={{
@@ -55,7 +56,7 @@ export default function Home() {
               </div>
 
               {/* Serif headline */}
-              <div style={{
+              <div className="hero-headline" style={{
                 fontFamily: DL.DISPLAY, fontSize: 44, fontWeight: 400,
                 letterSpacing: -1.3, lineHeight: 0.95, color: DL.INK,
               }}>
@@ -90,14 +91,14 @@ export default function Home() {
                 isAutoRefreshing={isAutoRefreshing}
               />
             </div>
-            <div style={{ pointerEvents: "none" }}>
+            <div className="desktop-only" style={{ pointerEvents: "none" }}>
               <HeatLegend />
             </div>
           </div>
         </div>
 
-        {/* ── Right: story panel ────────────────────────────────────────────── */}
-        <div style={{ width: 380, flexShrink: 0, minHeight: 0, overflow: "hidden" }}>
+        {/* ── Right: story panel (desktop sidebar, hidden on mobile) ───────── */}
+        <div className="panel-sidebar" style={{ width: 380, flexShrink: 0, minHeight: 0, overflow: "hidden" }}>
           {focusIso ? (
             <StoryPanel
               countryCode={focusIso}
@@ -117,6 +118,11 @@ export default function Home() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* ── Bottom tab bar (mobile only) ────────────────────────────────────── */}
+      <div className="mobile-only" style={{ flexDirection: "column", flexShrink: 0 }}>
+        <BottomTabBar active="Today" />
       </div>
     </div>
   );

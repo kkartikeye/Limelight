@@ -38,8 +38,13 @@ body {
 }
 
 @keyframes pulse-halo {
-  from { opacity: 0.25; }
-  to   { opacity: 0.70; }
+  from { opacity: 0.40; }
+  to   { opacity: 1.00; }
+}
+
+@keyframes route-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 /* ── Text wrap balance utility ────────────────────────────────────────────── */
@@ -47,6 +52,41 @@ body {
   .text-balance {
     text-wrap: balance;
   }
+
+  /* Route fade: 200ms on mount, keeps layout stable */
+  .route-fade {
+    animation: route-fade-in 200ms ease-out both;
+  }
+}
+
+/* ── Mobile responsive ────────────────────────────────────────────────────── */
+/* Hide desktop-only elements below 768px */
+@media (max-width: 767px) {
+  .desktop-only { display: none !important; }
+
+  /* Header: compress to logo + search only, tighter padding */
+  .header-nav    { display: none !important; }
+  .header-clock  { display: none !important; }
+  .header-signin { display: none !important; }
+  .header-root   { padding: 12px 20px !important; height: 56px !important; }
+
+  /* Story panel sidebar: hidden on mobile (navigate to /country/[iso] instead) */
+  .panel-sidebar { display: none !important; }
+
+  /* Map container: full width, tighter padding */
+  .map-host { padding: 8px 16px 0 !important; }
+
+  /* Hero headline: smaller on mobile */
+  .hero-headline { font-size: 30px !important; }
+
+  /* Filter bar: smaller pills, wrapping allowed */
+  .filter-bar-inner { flex-wrap: wrap; gap: 6px !important; }
+}
+
+/* Show mobile-only elements only on small screens */
+.mobile-only { display: none; }
+@media (max-width: 767px) {
+  .mobile-only { display: flex; }
 }
 
 /* ── Mapbox overrides for light basemap ───────────────────────────────────── */

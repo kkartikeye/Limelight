@@ -81,7 +81,7 @@ export default function CountryPage({ params, searchParams }: PageProps) {
   const heroArticle = articles[0];
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: DL.PAPER, overflow: "hidden", fontFamily: DL.SANS }}>
+    <div className="route-fade" style={{ display: "flex", flexDirection: "column", height: "100vh", background: DL.PAPER, overflow: "hidden", fontFamily: DL.SANS }}>
       <Header active="Today" />
 
       {/* Breadcrumb */}

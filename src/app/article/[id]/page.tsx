@@ -50,7 +50,7 @@ export default function ArticlePage({ params }: PageProps) {
   }, [id]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100vh", background: DL.PAPER, overflow: "hidden", fontFamily: DL.SANS }}>
+    <div className="route-fade" style={{ display: "flex", flexDirection: "column", height: "100vh", background: DL.PAPER, overflow: "hidden", fontFamily: DL.SANS }}>
       <Header active="Today" />
 
       {/* Breadcrumb */}
