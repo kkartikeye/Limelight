@@ -16,7 +16,22 @@ interface StoryPanelProps {
   onClose?: () => void;
 }
 
-function HeadlineRow({ article, index }: { article: Article; index: number }) {
+function HeadlineRow({
+  article, index, countryCode,
+}: {
+  article: Article; index: number; countryCode: string;
+}) {
+  // Encode article metadata as search params so the reader page can render
+  // even when the article ID isn't in Supabase (e.g. mock articles).
+  const params = new URLSearchParams({
+    h: article.headline,
+    s: article.source,
+    u: article.url,
+    c: article.category ?? "Politics",
+    t: article.publishedAt,
+    cc: countryCode,
+  });
+
   return (
     <div style={{
       padding: "12px 0",
@@ -34,7 +49,7 @@ function HeadlineRow({ article, index }: { article: Article; index: number }) {
       </span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <Link
-          href={`/article/${article.id}`}
+          href={`/article/${article.id}?${params}`}
           style={{
             display: "block",
             fontFamily: DL.SANS,
@@ -127,12 +142,15 @@ export default function StoryPanel({ countryCode, countryName, score, onClose }:
         </div>
       </div>
 
-      {/* Serif country name */}
+      {/* Serif country name — font scales down for longer names */}
       <div style={{
-        fontFamily: DL.DISPLAY, fontSize: 68, fontWeight: 400,
-        letterSpacing: -2, lineHeight: 0.9,
+        fontFamily: DL.DISPLAY,
+        fontSize: countryName.length <= 7 ? 68 : countryName.length <= 11 ? 52 : countryName.length <= 15 ? 42 : 34,
+        fontWeight: 400,
+        letterSpacing: -1.5,
+        lineHeight: 0.92,
         marginTop: 14, color: DL.INK,
-        overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+        wordBreak: "break-word",
       }}>
         {countryName}
       </div>
@@ -207,7 +225,7 @@ export default function StoryPanel({ countryCode, countryName, score, onClose }:
             </svg>
           </div>
         ) : articles.length > 0 ? (
-          articles.map((a, i) => <HeadlineRow key={a.id} article={a} index={i} />)
+          articles.map((a, i) => <HeadlineRow key={a.id} article={a} index={i} countryCode={countryCode} />)
         ) : (
           <div style={{ paddingTop: 40, textAlign: "center" }}>
             <p style={{ fontSize: 13, color: DL.DIM, fontFamily: DL.SANS }}>No recent coverage</p>

@@ -9,6 +9,7 @@ import HeatLegend from "@/components/ui/heat-legend";
 import StoryPanel from "@/components/panel/story-panel";
 import { useMapStore } from "@/lib/stores/map-store";
 import { useScores } from "@/lib/hooks/use-scores";
+import { countryName as isoToName } from "@/lib/utils/countries";
 import { DL } from "@/lib/design-tokens";
 
 export default function Home() {
@@ -27,8 +28,8 @@ export default function Home() {
   }, [scores]);
 
   // Which country to show in the panel
-  const focusIso   = isPanelOpen && selectedCountry ? selectedCountry  : topCountry?.iso  ?? "";
-  const focusName  = isPanelOpen && selectedCountry ? selectedCountryName : focusIso;
+  const focusIso   = isPanelOpen && selectedCountry ? selectedCountry   : topCountry?.iso  ?? "";
+  const focusName  = isPanelOpen && selectedCountry ? selectedCountryName : isoToName(focusIso);
   const focusScore = isPanelOpen && selectedCountry ? selectedCountryScore : topCountry?.score ?? 0;
 
   return (
@@ -39,12 +40,23 @@ export default function Home() {
       {/* ── Body ────────────────────────────────────────────────────────────── */}
       <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
 
-        {/* ── Left: headline + map ─────────────────────────────────────────── */}
-        <div className="map-host" style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, padding: "8px 44px 0", position: "relative" }}>
+        {/* ── Left: map fills full height; hero + legend overlay it ────────── */}
+        <div
+          className="map-host"
+          style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, padding: "8px 44px 0", position: "relative" }}
+        >
+          {/* Map takes all remaining height */}
+          <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
+            <MapView />
 
-          {/* Hero text — hidden on mobile to save space */}
-          <div className="desktop-only" style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", paddingTop: 8 }}>
-            <div style={{ maxWidth: 520 }}>
+            {/* ── Hero text overlay — top-left of globe ────────────────────── */}
+            <div
+              className="desktop-only"
+              style={{
+                position: "absolute", top: 16, left: 16, zIndex: 10,
+                pointerEvents: "none", maxWidth: 460,
+              }}
+            >
               {/* Coral eyebrow */}
               <div style={{
                 fontFamily: DL.MONO, fontSize: 10, letterSpacing: 0.18,
@@ -56,48 +68,55 @@ export default function Home() {
               </div>
 
               {/* Serif headline */}
-              <div className="hero-headline" style={{
-                fontFamily: DL.DISPLAY, fontSize: 44, fontWeight: 400,
-                letterSpacing: -1.3, lineHeight: 0.95, color: DL.INK,
-              }}>
+              <div
+                className="hero-headline"
+                style={{
+                  fontFamily: DL.DISPLAY, fontSize: 44, fontWeight: 400,
+                  letterSpacing: -1.3, lineHeight: 0.95, color: DL.INK,
+                }}
+              >
                 The shape of <em>the day&apos;s</em> news.
               </div>
 
               {/* Subtitle */}
-              <div style={{ fontSize: 13.5, color: DL.DIM, marginTop: 10, lineHeight: 1.4, maxWidth: 440, fontFamily: DL.SANS }}>
+              <div style={{ fontSize: 13, color: DL.DIM, marginTop: 10, lineHeight: 1.4, maxWidth: 380, fontFamily: DL.SANS }}>
                 Every country weighted by how loudly the world is reporting from it.
               </div>
             </div>
-          </div>
 
-          {/* Map — fills remaining height */}
-          <div style={{ flex: 1, minHeight: 0, marginTop: 18, position: "relative" }}>
-            <MapView />
-          </div>
-
-          {/* Bottom strip: filter pill + legend */}
-          <div style={{
-            position: "absolute",
-            left: 44, right: 44, bottom: 16,
-            display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 16,
-            pointerEvents: "none",
-          }}>
-            <div style={{ pointerEvents: "all" }}>
-              <FilterBar
-                isLoading={isLoading}
-                isMock={isMock}
-                lastUpdated={lastUpdated}
-                nextRefreshIn={nextRefreshIn}
-                isAutoRefreshing={isAutoRefreshing}
-              />
-            </div>
-            <div className="desktop-only" style={{ pointerEvents: "none" }}>
+            {/* ── Vertical intensity legend — right edge, mid-height ────────── */}
+            <div
+              className="desktop-only"
+              style={{
+                position: "absolute", right: 16, top: "50%",
+                transform: "translateY(-50%)",
+                pointerEvents: "none", zIndex: 10,
+              }}
+            >
               <HeatLegend />
+            </div>
+
+            {/* ── Bottom strip: filter bar ──────────────────────────────────── */}
+            <div style={{
+              position: "absolute",
+              left: 0, right: 0, bottom: 16,
+              display: "flex", alignItems: "flex-end",
+              pointerEvents: "none",
+            }}>
+              <div style={{ pointerEvents: "all" }}>
+                <FilterBar
+                  isLoading={isLoading}
+                  isMock={isMock}
+                  lastUpdated={lastUpdated}
+                  nextRefreshIn={nextRefreshIn}
+                  isAutoRefreshing={isAutoRefreshing}
+                />
+              </div>
             </div>
           </div>
         </div>
 
-        {/* ── Right: story panel (desktop sidebar, hidden on mobile) ───────── */}
+        {/* ── Right: story panel (desktop sidebar) ─────────────────────────── */}
         <div className="panel-sidebar" style={{ width: 380, flexShrink: 0, minHeight: 0, overflow: "hidden" }}>
           {focusIso ? (
             <StoryPanel
@@ -107,7 +126,6 @@ export default function Home() {
               onClose={isPanelOpen ? clearSelection : undefined}
             />
           ) : (
-            /* Loading placeholder */
             <div style={{
               height: "100%", display: "flex", alignItems: "center", justifyContent: "center",
               borderLeft: `1px solid ${DL.RULE}`, background: DL.PAPER,

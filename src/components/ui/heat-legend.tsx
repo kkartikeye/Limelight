@@ -2,36 +2,64 @@
 
 import { HEAT_RAMP, DL } from "@/lib/design-tokens";
 
-function buildGradient(): string {
-  // Map ramp stops to gradient percentages
-  const stops = HEAT_RAMP.map(([score, color], i) => {
-    const pct = i === 0 ? 0 : i === HEAT_RAMP.length - 1 ? 100 : Math.round(score);
-    return `${color} ${pct}%`;
-  });
-  return `linear-gradient(to right, ${stops.join(", ")})`;
-}
-
 export default function HeatLegend() {
-  return (
-    <div style={{ display: "inline-flex", flexDirection: "column", gap: 6 }}>
-      {/* Label */}
-      <div style={{
-        fontFamily: DL.MONO, fontSize: 10, color: DL.DIM,
-        letterSpacing: 0.12, textTransform: "uppercase",
-      }}>
-        Intensity
-      </div>
+  // Gradient runs top → bottom: loud (coral) at top, quiet (cream) at bottom
+  const gradient = `linear-gradient(to bottom, ${[...HEAT_RAMP].reverse().map(([, c]) => c).join(", ")})`;
 
-      {/* Gradient bar + labels */}
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ fontFamily: DL.MONO, fontSize: 10, color: DL.DIM }}>quiet</span>
-        <div style={{
-          width: 180, height: 8, borderRadius: 999,
-          background: buildGradient(),
-          border: `1px solid ${DL.RULE_2}`,
-          flexShrink: 0,
-        }} />
-        <span style={{ fontFamily: DL.MONO, fontSize: 10, color: DL.CORAL, fontWeight: 600 }}>loud</span>
+  return (
+    <div style={{
+      display: "inline-flex",
+      flexDirection: "row",
+      alignItems: "stretch",
+      gap: 6,
+      background: "rgba(246,243,236,0.88)",
+      backdropFilter: "blur(10px)",
+      WebkitBackdropFilter: "blur(10px)",
+      borderRadius: 10,
+      padding: "10px 10px",
+      border: `1px solid rgba(24,22,19,0.08)`,
+    }}>
+      {/* Gradient bar */}
+      <div style={{
+        width: 8,
+        height: 110,
+        borderRadius: 999,
+        background: gradient,
+        border: `1px solid rgba(24,22,19,0.10)`,
+        flexShrink: 0,
+      }} />
+
+      {/* Labels: loud / INTENSITY / quiet */}
+      <div style={{
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        paddingTop: 1,
+        paddingBottom: 1,
+        height: 110,
+      }}>
+        <span style={{
+          fontFamily: DL.MONO, fontSize: 9,
+          color: DL.CORAL, fontWeight: 600, letterSpacing: 0.04,
+        }}>
+          loud
+        </span>
+        <span style={{
+          fontFamily: DL.MONO, fontSize: 8,
+          color: DL.DIM_2, letterSpacing: 0.14,
+          textTransform: "uppercase",
+          writingMode: "vertical-rl",
+          transform: "rotate(180deg)",
+          alignSelf: "center",
+        }}>
+          intensity
+        </span>
+        <span style={{
+          fontFamily: DL.MONO, fontSize: 9,
+          color: DL.DIM, letterSpacing: 0.04,
+        }}>
+          quiet
+        </span>
       </div>
     </div>
   );

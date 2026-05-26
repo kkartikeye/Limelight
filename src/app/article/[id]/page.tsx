@@ -16,20 +16,30 @@ interface ApiArticle {
   source: string;
   domain: string;
   credibilityTier: string;
-  countryCode: string;
+  countryCode: string | null;
 }
 
 interface PageProps {
   params: Promise<{ id: string }>;
+  /**
+   * Short query params encoded by StoryPanel's HeadlineRow as a fallback
+   * so mock articles (not in Supabase) still render correctly.
+   * h=headline, s=source, u=url, c=category, t=publishedAt, cc=countryCode
+   */
+  searchParams: Promise<{
+    h?: string; s?: string; u?: string;
+    c?: string; t?: string; cc?: string;
+  }>;
 }
 
 function readingTime(): string {
-  // Estimate based on article metadata only
   return "~3 min read";
 }
 
-export default function ArticlePage({ params }: PageProps) {
+export default function ArticlePage({ params, searchParams }: PageProps) {
   const { id } = use(params);
+  const fb = use(searchParams);   // fallback from URL params (mock articles)
+
   const [article, setArticle] = useState<ApiArticle | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -37,11 +47,43 @@ export default function ArticlePage({ params }: PageProps) {
     fetch(`/api/articles/${id}`)
       .then((r) => r.json())
       .then((d) => {
-        if (d.article) setArticle(d.article);
+        if (d.article) {
+          setArticle(d.article);
+        } else if (fb.h) {
+          // API returned 404 but we have fallback data (mock article)
+          setArticle({
+            id,
+            headline: fb.h,
+            url: fb.u ?? "#",
+            publishedAt: fb.t ?? new Date().toISOString(),
+            category: fb.c ?? "Politics",
+            source: fb.s ?? "Unknown",
+            domain: "",
+            credibilityTier: "medium",
+            countryCode: fb.cc ?? null,
+          });
+        }
       })
-      .catch(() => {})
+      .catch(() => {
+        // Network error — still try fallback
+        if (fb.h) {
+          setArticle({
+            id,
+            headline: fb.h,
+            url: fb.u ?? "#",
+            publishedAt: fb.t ?? new Date().toISOString(),
+            category: fb.c ?? "Politics",
+            source: fb.s ?? "Unknown",
+            domain: "",
+            credibilityTier: "medium",
+            countryCode: fb.cc ?? null,
+          });
+        }
+      })
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, fb]);  // fb is stable (resolved from Promise on mount)
+
+  const displayCountry = article?.countryCode ? countryName(article.countryCode) : null;
 
   return (
     <div className="route-fade" style={{ display: "flex", flexDirection: "column", height: "100vh", background: DL.PAPER, overflow: "hidden", fontFamily: DL.SANS }}>
@@ -52,14 +94,21 @@ export default function ArticlePage({ params }: PageProps) {
         display: "flex", alignItems: "center", gap: 10,
         padding: "14px 44px 0", color: DL.DIM, fontSize: 12,
       }}>
-        <Link href={article?.countryCode ? `/country/${article.countryCode}?name=${encodeURIComponent(countryName(article.countryCode))}` : "/"} style={{
-          display: "inline-flex", alignItems: "center", gap: 6,
-          color: DL.INK_2, fontWeight: 500, textDecoration: "none",
-        }}>
+        <Link
+          href={
+            article?.countryCode
+              ? `/country/${article.countryCode}?name=${encodeURIComponent(countryName(article.countryCode))}`
+              : "/"
+          }
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 6,
+            color: DL.INK_2, fontWeight: 500, textDecoration: "none",
+          }}
+        >
           <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
             <polyline points="8,3 4,7 8,11" /><line x1="4" y1="7" x2="12" y2="7" />
           </svg>
-          {article?.countryCode ? countryName(article.countryCode) : "Back"}
+          {displayCountry ?? "Back"}
         </Link>
         {article && (
           <>
@@ -115,7 +164,7 @@ export default function ArticlePage({ params }: PageProps) {
                 textTransform: "uppercase", color: DL.CORAL,
               }}>
                 <span style={{ width: 6, height: 6, borderRadius: 999, background: DL.CORAL, display: "inline-block" }} />
-                {article.category} · {countryName(article.countryCode)}
+                {article.category}{displayCountry ? ` · ${displayCountry}` : ""}
               </div>
 
               {/* Headline */}
@@ -135,7 +184,6 @@ export default function ArticlePage({ params }: PageProps) {
                 borderBottom: `1px solid ${DL.RULE}`,
                 marginBottom: 28,
               }}>
-                {/* Avatar */}
                 <div style={{
                   width: 32, height: 32, borderRadius: 999,
                   background: DL.PAPER_2,
@@ -162,7 +210,7 @@ export default function ArticlePage({ params }: PageProps) {
                 </div>
               </div>
 
-              {/* Body — we don't store full text; link out to source */}
+              {/* Body */}
               <div style={{ fontFamily: DL.DISPLAY, fontSize: 17.5, lineHeight: 1.55, color: DL.INK_2, maxWidth: 600 }}>
                 <p style={{ margin: "0 0 18px" }}>
                   This article was reported by <strong style={{ color: DL.INK }}>{article.source}</strong>. Limelight surfaces
@@ -172,23 +220,25 @@ export default function ArticlePage({ params }: PageProps) {
                   The coverage is filed under <strong style={{ color: DL.INK }}>{article.category}</strong> and was
                   published {relativeTime(article.publishedAt)}.
                 </p>
-                <a
-                  href={article.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    display: "inline-flex", alignItems: "center", gap: 8,
-                    padding: "10px 18px", borderRadius: 999,
-                    background: DL.INK, color: DL.PAPER,
-                    textDecoration: "none", fontSize: 13, fontWeight: 600,
-                    fontFamily: DL.SANS,
-                  }}
-                >
-                  Read full article at {article.source}
-                  <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
-                    <line x1="2" y1="7" x2="12" y2="7" /><polyline points="9,4 12,7 9,10" />
-                  </svg>
-                </a>
+                {article.url && article.url !== "#" && (
+                  <a
+                    href={article.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 8,
+                      padding: "10px 18px", borderRadius: 999,
+                      background: DL.INK, color: DL.PAPER,
+                      textDecoration: "none", fontSize: 13, fontWeight: 600,
+                      fontFamily: DL.SANS,
+                    }}
+                  >
+                    Read full article at {article.source}
+                    <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
+                      <line x1="2" y1="7" x2="12" y2="7" /><polyline points="9,4 12,7 9,10" />
+                    </svg>
+                  </a>
+                )}
               </div>
             </div>
           ) : (
@@ -209,7 +259,6 @@ export default function ArticlePage({ params }: PageProps) {
           display: "flex", flexDirection: "column", gap: 22,
           overflowY: "auto",
         }}>
-          {/* Category chip cloud */}
           {article && (
             <>
               <div>
@@ -220,7 +269,7 @@ export default function ArticlePage({ params }: PageProps) {
                   Filed under
                 </div>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                  {[article.category, article.countryCode, article.domain].map((tag) => (
+                  {[article.category, ...(displayCountry ? [displayCountry] : []), ...(article.domain ? [article.domain] : [])].map((tag) => (
                     <span key={tag} style={{
                       padding: "5px 10px", borderRadius: 999, fontSize: 11, fontWeight: 500,
                       background: tag === article.category ? DL.CORAL_50 : DL.CARD,
@@ -234,46 +283,54 @@ export default function ArticlePage({ params }: PageProps) {
                 </div>
               </div>
 
-              <div>
-                <div style={{
-                  fontFamily: DL.MONO, fontSize: 10, letterSpacing: 0.12,
-                  textTransform: "uppercase", color: DL.DIM, marginBottom: 10,
-                }}>
-                  Source
+              {article.source && (
+                <div>
+                  <div style={{
+                    fontFamily: DL.MONO, fontSize: 10, letterSpacing: 0.12,
+                    textTransform: "uppercase", color: DL.DIM, marginBottom: 10,
+                  }}>
+                    Source
+                  </div>
+                  <p style={{ fontSize: 13, color: DL.INK, fontWeight: 600, margin: 0 }}>{article.source}</p>
+                  {article.domain && (
+                    <a
+                      href={`https://${article.domain}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ fontSize: 11, color: DL.DIM, marginTop: 4, display: "block", textDecoration: "none" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.color = DL.CORAL)}
+                      onMouseLeave={(e) => (e.currentTarget.style.color = DL.DIM)}
+                    >
+                      {article.domain}
+                    </a>
+                  )}
                 </div>
-                <a
-                  href={`https://${article.domain}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ fontSize: 13, color: DL.INK, fontWeight: 600, textDecoration: "none" }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = DL.CORAL)}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = DL.INK)}
-                >
-                  {article.source}
-                </a>
-                <p style={{ fontSize: 11, color: DL.DIM, marginTop: 4 }}>{article.domain}</p>
-              </div>
+              )}
 
-              <div>
-                <div style={{
-                  fontFamily: DL.MONO, fontSize: 10, letterSpacing: 0.12,
-                  textTransform: "uppercase", color: DL.DIM, marginBottom: 10,
-                }}>
-                  Explore
+              {article.countryCode && (
+                <div>
+                  <div style={{
+                    fontFamily: DL.MONO, fontSize: 10, letterSpacing: 0.12,
+                    textTransform: "uppercase", color: DL.DIM, marginBottom: 10,
+                  }}>
+                    Explore
+                  </div>
+                  <Link
+                    href={`/country/${article.countryCode}?name=${encodeURIComponent(countryName(article.countryCode))}`}
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 6,
+                      fontSize: 12, color: DL.INK_2, textDecoration: "none", fontWeight: 500,
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.color = DL.CORAL)}
+                    onMouseLeave={(e) => (e.currentTarget.style.color = DL.INK_2)}
+                  >
+                    All coverage from {displayCountry}
+                    <svg width="10" height="10" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
+                      <line x1="2" y1="7" x2="12" y2="7" /><polyline points="9,4 12,7 9,10" />
+                    </svg>
+                  </Link>
                 </div>
-                <Link
-                  href={`/country/${article.countryCode}?name=${encodeURIComponent(countryName(article.countryCode))}`}
-                  style={{
-                    display: "inline-flex", alignItems: "center", gap: 6,
-                    fontSize: 12, color: DL.INK_2, textDecoration: "none", fontWeight: 500,
-                  }}
-                >
-                  All coverage from {countryName(article.countryCode)}
-                  <svg width="10" height="10" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round">
-                    <line x1="2" y1="7" x2="12" y2="7" /><polyline points="9,4 12,7 9,10" />
-                  </svg>
-                </Link>
-              </div>
+              )}
             </>
           )}
         </div>
