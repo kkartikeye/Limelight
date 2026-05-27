@@ -124,6 +124,7 @@ export default function Home() {
               countryName={focusName}
               score={focusScore}
               onClose={isPanelOpen ? clearSelection : undefined}
+              isAutoSelected={!isPanelOpen}
             />
           ) : (
             <div style={{

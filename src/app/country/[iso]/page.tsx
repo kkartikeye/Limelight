@@ -10,6 +10,7 @@ import { DL } from "@/lib/design-tokens";
 import { ALL_CATEGORIES } from "@/lib/stores/map-store";
 import { relativeTime } from "@/lib/utils/time";
 import { countryName as isoToName } from "@/lib/utils/countries";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { Article } from "@/lib/types/article";
 
 interface PageProps {
@@ -217,11 +218,17 @@ export default function CountryPage({ params, searchParams }: PageProps) {
 
           <div style={{ flex: 1, overflowY: "auto", paddingBottom: 24 }}>
             {loading ? (
-              <div style={{ paddingTop: 48, display: "flex", justifyContent: "center" }}>
-                <svg className="animate-spin" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={DL.DIM} strokeWidth="2">
-                  <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
-                  <path d="M12 2a10 10 0 0 1 10 10" />
-                </svg>
+              // Skeleton rows while articles load
+              <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingTop: 4 }}>
+                {Array.from({ length: 8 }, (_, i) => {
+                  const widths = ["88%", "72%", "80%", "65%", "75%", "90%", "68%", "78%"];
+                  return (
+                    <div key={i} style={{ padding: "10px 0", borderTop: `1px solid ${DL.RULE_2}` }}>
+                      <Skeleton width={widths[i % widths.length]} height={14} style={{ marginBottom: 6 }} />
+                      <Skeleton width="45%" height={11} />
+                    </div>
+                  );
+                })}
               </div>
             ) : grouped.length > 0 ? (
               grouped.map(([group, items], gi) => (

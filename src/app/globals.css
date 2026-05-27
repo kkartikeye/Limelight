@@ -47,6 +47,11 @@ body {
   to   { opacity: 1; }
 }
 
+@keyframes skeleton-shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
 /* ── Text wrap balance utility ────────────────────────────────────────────── */
 @layer utilities {
   .text-balance {
@@ -56,6 +61,11 @@ body {
   /* Route fade: 200ms on mount, keeps layout stable */
   .route-fade {
     animation: route-fade-in 200ms ease-out both;
+  }
+
+  /* Skeleton shimmer */
+  .skeleton-shimmer {
+    animation: skeleton-shimmer 1.6s ease-in-out infinite;
   }
 }
 

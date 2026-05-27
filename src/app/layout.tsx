@@ -26,15 +26,23 @@ const ibmPlexMono = IBM_Plex_Mono({
   display: "swap",
 });
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://limelight.news";
+
 export const metadata: Metadata = {
-  title: "Limelight",
+  title: {
+    default: "Limelight",
+    template: "%s · Limelight",
+  },
   description:
     "See the world's news before you read it. An interactive heat map that shows global news coverage intensity by country.",
+  metadataBase: new URL(SITE_URL),
   openGraph: {
     title: "Limelight",
     description:
       "See the world's news before you read it. An interactive heat map that shows global news coverage intensity by country.",
     type: "website",
+    url: SITE_URL,
+    siteName: "Limelight",
   },
   twitter: {
     card: "summary_large_image",

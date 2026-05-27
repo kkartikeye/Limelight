@@ -32,10 +32,11 @@ export function useArticles(
   countryCode: string,
   timeWindow: TimeWindow = "24h",
   categories: Category[] = ALL_CATEGORIES
-): { articles: Article[]; loading: boolean; isLive: boolean } {
+): { articles: Article[]; loading: boolean; isLive: boolean; error: string | null } {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [isLive, setIsLive] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!countryCode) return;
@@ -44,12 +45,14 @@ export function useArticles(
     if (categories.length === 0) {
       setArticles([]);
       setIsLive(false);
+      setError(null);
       setLoading(false);
       return;
     }
 
     let active = true;
     setLoading(true);
+    setError(null);
 
     // Build category param only when a subset is selected
     const catParam =
@@ -70,8 +73,10 @@ export function useArticles(
           setIsLive(false);
         }
       })
-      .catch(() => {
+      .catch((err: unknown) => {
         if (active) {
+          const msg = err instanceof Error ? err.message : "Failed to load articles";
+          setError(msg);
           setArticles(getMockStories(countryCode));
           setIsLive(false);
         }
@@ -83,5 +88,5 @@ export function useArticles(
     return () => { active = false; };
   }, [countryCode, timeWindow, categories]);
 
-  return { articles, loading, isLive };
+  return { articles, loading, isLive, error };
 }

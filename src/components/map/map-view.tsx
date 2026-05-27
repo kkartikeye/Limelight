@@ -60,7 +60,7 @@ export default function MapView({ onSelectCountry }: MapViewProps) {
   const scoresRef = useRef(scores);
   scoresRef.current = scores;
 
-  const { selectedCountry, selectCountry, clearSelection } = useMapStore();
+  const { selectedCountry, selectCountry } = useMapStore();
   const { watched } = useWatchlistStore();
   const watchedIsos = useMemo(() => watched.map((w) => w.iso), [watched]);
 
@@ -145,12 +145,9 @@ export default function MapView({ onSelectCountry }: MapViewProps) {
         map.scrollZoom.enable();
       });
 
-      map.on("click", (e) => {
-        const features = map.queryRenderedFeatures(e.point, { layers: ["heat-fill"] });
-        if (!features.length) {
-          clearSelection();
-        }
-      });
+      // Ocean click intentionally does NOT call clearSelection() —
+      // clearing only happens via the × button or Escape key in StoryPanel.
+      // We still enable scroll-zoom on any click so users can explore.
     });
 
     map.on("click", () => map.scrollZoom.enable());

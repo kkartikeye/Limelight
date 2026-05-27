@@ -7,6 +7,7 @@ import { useMapStore } from "@/lib/stores/map-store";
 import { useWatchlistStore } from "@/lib/stores/watchlist-store";
 import { DL } from "@/lib/design-tokens";
 import { relativeTime } from "@/lib/utils/time";
+import { HeadlineSkeleton } from "@/components/ui/skeleton";
 import type { Article } from "@/lib/types/article";
 
 interface StoryPanelProps {
@@ -14,6 +15,8 @@ interface StoryPanelProps {
   countryName: string;
   score: number;
   onClose?: () => void;
+  /** True when no country was explicitly clicked — showing the highest-scored country automatically */
+  isAutoSelected?: boolean;
 }
 
 function HeadlineRow({
@@ -81,7 +84,7 @@ function HeadlineRow({
   );
 }
 
-export default function StoryPanel({ countryCode, countryName, score, onClose }: StoryPanelProps) {
+export default function StoryPanel({ countryCode, countryName, score, onClose, isAutoSelected = false }: StoryPanelProps) {
   const { filters } = useMapStore();
   const { toggleWatch, isWatched } = useWatchlistStore();
   const watched = isWatched(countryCode);
@@ -110,9 +113,14 @@ export default function StoryPanel({ countryCode, countryName, score, onClose }:
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <span style={{
           fontFamily: DL.MONO, fontSize: 10, letterSpacing: 0.18,
-          textTransform: "uppercase", color: DL.DIM,
+          textTransform: "uppercase",
+          color: isAutoSelected ? DL.CORAL : DL.DIM,
+          display: "flex", alignItems: "center", gap: 6,
         }}>
-          In focus
+          {isAutoSelected && (
+            <span style={{ width: 5, height: 5, borderRadius: 999, background: DL.CORAL, display: "inline-block", flexShrink: 0 }} />
+          )}
+          {isAutoSelected ? "Trending now" : "In focus"}
         </span>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button
@@ -218,11 +226,11 @@ export default function StoryPanel({ countryCode, countryName, score, onClose }:
 
       <div style={{ flex: 1, overflowY: "auto", marginTop: 4 }}>
         {loading ? (
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", paddingTop: 48 }}>
-            <svg className="animate-spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={DL.DIM} strokeWidth="2">
-              <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
-              <path d="M12 2a10 10 0 0 1 10 10" />
-            </svg>
+          // Skeleton placeholder — 5 headline rows while articles load
+          <div>
+            {Array.from({ length: 5 }, (_, i) => (
+              <HeadlineSkeleton key={i} index={i} />
+            ))}
           </div>
         ) : articles.length > 0 ? (
           articles.map((a, i) => <HeadlineRow key={a.id} article={a} index={i} countryCode={countryCode} />)
