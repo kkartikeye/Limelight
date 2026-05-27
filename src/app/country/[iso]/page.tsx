@@ -1,11 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import Link from "next/link";
 import Header from "@/components/ui/header";
+import BottomTabBar from "@/components/ui/bottom-tab-bar";
 import { useScores } from "@/lib/hooks/use-scores";
 import { useArticles } from "@/lib/hooks/use-articles";
 import { useWatchlistStore } from "@/lib/stores/watchlist-store";
+import { useUser } from "@/lib/hooks/use-user";
 import { DL } from "@/lib/design-tokens";
 import { ALL_CATEGORIES } from "@/lib/stores/map-store";
 import { relativeTime } from "@/lib/utils/time";
@@ -56,11 +58,25 @@ export default function CountryPage({ params, searchParams }: PageProps) {
   const { scores } = useScores();
   const { articles, loading, isLive } = useArticles(iso, "24h", ALL_CATEGORIES);
   const { toggleWatch, isWatched } = useWatchlistStore();
+  const { user } = useUser();
 
   const scoreEntry = scores?.[iso];
   const score = scoreEntry?.score ?? 0;
   const displayName = nameParam ?? isoToName(iso);
   const watched = isWatched(iso);
+
+  // Mirror watch toggle to server when signed in
+  const handleToggleWatch = useCallback(() => {
+    const adding = !isWatched(iso);
+    toggleWatch(iso, displayName);
+    if (user) {
+      void fetch("/api/watchlist", {
+        method: adding ? "POST" : "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(adding ? { iso, name: displayName } : { iso }),
+      });
+    }
+  }, [user, toggleWatch, isWatched, iso, displayName]);
 
   // Group articles by category
   const grouped = useMemo(() => {
@@ -76,11 +92,11 @@ export default function CountryPage({ params, searchParams }: PageProps) {
   const heroArticle = articles[0];
 
   return (
-    <div className="route-fade" style={{ display: "flex", flexDirection: "column", height: "100vh", background: DL.PAPER, overflow: "hidden", fontFamily: DL.SANS }}>
+    <div className="route-fade country-page" style={{ display: "flex", flexDirection: "column", height: "100vh", background: DL.PAPER, overflow: "hidden", fontFamily: DL.SANS }}>
       <Header active="Today" />
 
       {/* Breadcrumb */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 44px 0", color: DL.DIM, fontSize: 12 }}>
+      <div className="country-breadcrumb" style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 44px 0", color: DL.DIM, fontSize: 12 }}>
         <Link href="/" style={{
           display: "inline-flex", alignItems: "center", gap: 6,
           color: DL.INK_2, fontWeight: 500, textDecoration: "none",
@@ -98,13 +114,13 @@ export default function CountryPage({ params, searchParams }: PageProps) {
       </div>
 
       {/* Body */}
-      <div style={{ display: "flex", flex: 1, minHeight: 0, padding: "20px 44px 0", gap: 0, overflow: "hidden" }}>
+      <div className="country-body" style={{ display: "flex", flex: 1, minHeight: 0, padding: "20px 44px 0", gap: 0, overflow: "hidden" }}>
 
         {/* Left: country header + hero story */}
-        <div style={{ flex: 1, paddingRight: 36, overflowY: "auto", paddingBottom: 24 }}>
+        <div className="country-left" style={{ flex: 1, paddingRight: 36, overflowY: "auto", paddingBottom: 24 }}>
           {/* Hero header */}
           <div style={{ display: "flex", alignItems: "flex-end", gap: 20 }}>
-            <div style={{
+            <div className="country-hero-name" style={{
               fontFamily: DL.DISPLAY, fontSize: 100, fontWeight: 400,
               letterSpacing: -3.5, lineHeight: 0.85, color: DL.INK,
             }}>
@@ -124,7 +140,7 @@ export default function CountryPage({ params, searchParams }: PageProps) {
           </div>
 
           {/* Stats row */}
-          <div style={{
+          <div className="country-stats" style={{
             display: "flex", gap: 0, marginTop: 20,
             borderTop: `1px solid ${DL.RULE}`, borderBottom: `1px solid ${DL.RULE}`,
           }}>
@@ -134,7 +150,7 @@ export default function CountryPage({ params, searchParams }: PageProps) {
               ["Top cat.",   articles[0]?.category ?? "—",  DL.CORAL,  "most reported"],
               ["Rank",       scoreEntry ? "#—" : "—",        DL.INK,    "globally today"],
             ].map(([k, v, c, sub], i) => (
-              <div key={k} style={{
+              <div key={k} className="country-stat" style={{
                 flex: 1, padding: "14px 0",
                 borderLeft: i > 0 ? `1px solid ${DL.RULE_2}` : "none",
                 paddingLeft: i > 0 ? 18 : 0,
@@ -189,7 +205,7 @@ export default function CountryPage({ params, searchParams }: PageProps) {
         </div>
 
         {/* Right: grouped feed */}
-        <div style={{
+        <div className="country-right" style={{
           width: 460, flexShrink: 0,
           borderLeft: `1px solid ${DL.RULE}`, paddingLeft: 28,
           display: "flex", flexDirection: "column", overflow: "hidden",
@@ -200,7 +216,7 @@ export default function CountryPage({ params, searchParams }: PageProps) {
               All coverage · grouped by category
             </span>
             <button
-              onClick={() => toggleWatch(iso, displayName)}
+              onClick={handleToggleWatch}
               style={{
                 display: "inline-flex", alignItems: "center", gap: 5,
                 color: watched ? DL.CORAL : DL.DIM, background: "none",
@@ -249,6 +265,10 @@ export default function CountryPage({ params, searchParams }: PageProps) {
             )}
           </div>
         </div>
+      </div>
+
+      <div className="bottom-tab-wrapper">
+        <BottomTabBar active="Today" />
       </div>
     </div>
   );

@@ -1,13 +1,29 @@
 "use client";
 
+import { useCallback } from "react";
 import Link from "next/link";
 import Header from "@/components/ui/header";
+import BottomTabBar from "@/components/ui/bottom-tab-bar";
 import { useWatchlistStore } from "@/lib/stores/watchlist-store";
+import { useUser } from "@/lib/hooks/use-user";
 import { useScores } from "@/lib/hooks/use-scores";
 import { DL } from "@/lib/design-tokens";
 
 export default function SavedPage() {
   const { watched, toggleWatch } = useWatchlistStore();
+  const { user } = useUser();
+
+  // Mirror unwatch to server when signed in
+  const handleUnwatch = useCallback((iso: string, name: string) => {
+    toggleWatch(iso, name);
+    if (user) {
+      void fetch("/api/watchlist", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ iso }),
+      });
+    }
+  }, [user, toggleWatch]);
   const { scores } = useScores();
 
   return (
@@ -24,7 +40,7 @@ export default function SavedPage() {
     >
       <Header active="Saved" />
 
-      <div style={{ flex: 1, overflowY: "auto", padding: "32px 44px" }}>
+      <div className="saved-body" style={{ flex: 1, overflowY: "auto", padding: "32px 44px" }}>
         {/* Page header */}
         <div style={{ marginBottom: 32 }}>
           <div style={{
@@ -35,7 +51,7 @@ export default function SavedPage() {
             <span style={{ width: 6, height: 6, borderRadius: 999, background: DL.CORAL, display: "inline-block" }} />
             Watchlist
           </div>
-          <h1 style={{
+          <h1 className="saved-h1" style={{
             fontFamily: DL.DISPLAY, fontSize: 72, fontWeight: 400,
             letterSpacing: -2.5, lineHeight: 0.88, color: DL.INK,
             margin: 0,
@@ -137,7 +153,7 @@ export default function SavedPage() {
                       </Link>
                     </div>
                     <button
-                      onClick={() => toggleWatch(entry.iso, entry.name)}
+                      onClick={() => handleUnwatch(entry.iso, entry.name)}
                       title="Remove from watchlist"
                       style={{
                         background: "none", border: "none", cursor: "pointer",
@@ -210,6 +226,10 @@ export default function SavedPage() {
             })}
           </div>
         )}
+      </div>
+
+      <div className="bottom-tab-wrapper">
+        <BottomTabBar active="Saved" />
       </div>
     </div>
   );

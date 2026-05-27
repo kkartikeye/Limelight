@@ -74,7 +74,7 @@ body {
 @media (max-width: 767px) {
   .desktop-only { display: none !important; }
 
-  /* Header: compress to logo + search only, tighter padding */
+  /* Header: compress to logo + auth/search only, tighter padding */
   .header-nav    { display: none !important; }
   .header-clock  { display: none !important; }
   .header-signin { display: none !important; }
@@ -91,6 +91,52 @@ body {
 
   /* Filter bar: smaller pills, wrapping allowed */
   .filter-bar-inner { flex-wrap: wrap; gap: 6px !important; }
+
+  /* ── Country page (/country/[iso]) ──────────────────────────────────────── */
+  .country-page       { height: auto !important; min-height: 100dvh; overflow: auto !important; }
+  .country-breadcrumb { padding: 12px 20px 0 !important; }
+  .country-body       { flex-direction: column !important; padding: 16px 20px 90px !important;
+                        overflow: visible !important; height: auto !important; gap: 0 !important; }
+  .country-left       { padding-right: 0 !important; overflow: visible !important; }
+  .country-hero-name  { font-size: 52px !important; letter-spacing: -1.5px !important; }
+  .country-stats      { flex-wrap: wrap !important; }
+  .country-stat       { min-width: 50% !important; box-sizing: border-box; }
+  .country-right      { width: 100% !important; flex-shrink: 1 !important; border-left: none !important;
+                        border-top: 1px solid rgba(24,22,19,0.08) !important;
+                        padding-left: 0 !important; padding-top: 20px !important;
+                        margin-top: 20px !important; overflow: visible !important;
+                        height: auto !important; }
+
+  /* ── Article page (/article/[id]) ──────────────────────────────────────── */
+  .article-page       { height: auto !important; min-height: 100dvh; overflow: auto !important; }
+  .article-breadcrumb { padding: 12px 20px 0 !important; }
+  .article-body       { overflow: visible !important; height: auto !important; }
+  .article-content    { padding: 20px 20px 90px !important; overflow: visible !important; }
+  .article-sidebar    { display: none !important; }
+  .article-headline   { font-size: 30px !important; letter-spacing: -0.5px !important;
+                        line-height: 1.1 !important; margin: 10px 0 14px !important; }
+
+  /* ── Saved page (/saved) ───────────────────────────────────────────────── */
+  .saved-body { padding: 24px 20px 90px !important; }
+  .saved-h1   { font-size: 52px !important; letter-spacing: -2px !important; }
+
+  /* ── Topics page (/topics) ─────────────────────────────────────────────── */
+  .topics-body { padding: 24px 20px 90px !important; }
+  .topics-h1   { font-size: 42px !important; letter-spacing: -1.2px !important; line-height: 0.92 !important; }
+  .topics-grid { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+
+  /* ── Regions page (/regions) ───────────────────────────────────────────── */
+  .regions-h1 { font-size: 48px !important; letter-spacing: -2px !important; }
+
+  /* ── Search page (/search) ─────────────────────────────────────────────── */
+  .search-bar     { padding: 14px 20px 0 !important; }
+  .search-results { padding: 16px 20px 90px !important; }
+}
+
+/* Bottom tab bar — always hidden on desktop, shown on mobile */
+.bottom-tab-wrapper { display: none; }
+@media (max-width: 767px) {
+  .bottom-tab-wrapper { display: block; }
 }
 
 /* Show mobile-only elements only on small screens */

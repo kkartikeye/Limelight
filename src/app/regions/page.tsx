@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Header from "@/components/ui/header";
+import BottomTabBar from "@/components/ui/bottom-tab-bar";
 import { DL } from "@/lib/design-tokens";
 
 export default function RegionsPage() {
@@ -19,7 +20,7 @@ export default function RegionsPage() {
 
       <div style={{
         flex: 1, display: "flex", flexDirection: "column",
-        alignItems: "center", justifyContent: "center", gap: 16, padding: "0 44px",
+        alignItems: "center", justifyContent: "center", gap: 16, padding: "0 32px",
       }}>
         <div style={{
           fontFamily: DL.MONO, fontSize: 10, letterSpacing: 0.16,
@@ -29,7 +30,7 @@ export default function RegionsPage() {
           <span style={{ width: 6, height: 6, borderRadius: 999, background: DL.CORAL, display: "inline-block" }} />
           Coming soon
         </div>
-        <h1 style={{
+        <h1 className="regions-h1" style={{
           fontFamily: DL.DISPLAY, fontSize: 72, fontWeight: 400,
           letterSpacing: -2.5, lineHeight: 0.88, color: DL.INK,
           margin: 0, textAlign: "center",
@@ -58,6 +59,10 @@ export default function RegionsPage() {
             <line x1="2" y1="7" x2="12" y2="7" /><polyline points="9,4 12,7 9,10" />
           </svg>
         </Link>
+      </div>
+
+      <div className="bottom-tab-wrapper">
+        <BottomTabBar active="Regions" />
       </div>
     </div>
   );

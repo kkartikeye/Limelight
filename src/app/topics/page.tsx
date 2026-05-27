@@ -3,6 +3,7 @@
 import Link from "next/link";
 import useSWR from "swr";
 import Header from "@/components/ui/header";
+import BottomTabBar from "@/components/ui/bottom-tab-bar";
 import { DL } from "@/lib/design-tokens";
 import { ALL_CATEGORIES } from "@/lib/stores/map-store";
 
@@ -44,7 +45,7 @@ export default function TopicsPage() {
       <Header active="Topics" />
 
       <div style={{ flex: 1, overflowY: "auto" }}>
-        <div style={{ maxWidth: 960, margin: "0 auto", padding: "36px 44px 60px" }}>
+        <div className="topics-body" style={{ maxWidth: 960, margin: "0 auto", padding: "36px 44px 60px" }}>
 
           {/* ── Page header ─────────────────────────────────────────────── */}
           <div style={{ marginBottom: 36 }}>
@@ -56,7 +57,7 @@ export default function TopicsPage() {
               <span style={{ width: 5, height: 5, borderRadius: 999, background: DL.CORAL, display: "inline-block" }} />
               Browse by topic
             </div>
-            <h1 style={{
+            <h1 className="topics-h1" style={{
               fontFamily: DL.DISPLAY, fontSize: 64, fontWeight: 400,
               letterSpacing: -2.2, lineHeight: 0.90, color: DL.INK,
               margin: "0 0 12px",
@@ -104,7 +105,7 @@ export default function TopicsPage() {
           )}
 
           {/* ── Category grid ─────────────────────────────────────────────── */}
-          <div style={{
+          <div className="topics-grid" style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fill, minmax(210px, 1fr))",
             gap: 14,
@@ -158,6 +159,10 @@ export default function TopicsPage() {
           </div>
 
         </div>
+      </div>
+
+      <div className="bottom-tab-wrapper">
+        <BottomTabBar active="Topics" />
       </div>
     </div>
   );

@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import useSWR from "swr";
 import Header from "@/components/ui/header";
+import BottomTabBar from "@/components/ui/bottom-tab-bar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DL } from "@/lib/design-tokens";
 import { relativeTime } from "@/lib/utils/time";
@@ -176,7 +177,7 @@ function SearchContent() {
   return (
     <>
       {/* ── Search bar ─────────────────────────────────────────────────────── */}
-      <div style={{
+      <div className="search-bar" style={{
         padding: "20px 44px 0",
         borderBottom: `1px solid ${DL.RULE}`,
         background: DL.PAPER,
@@ -248,7 +249,7 @@ function SearchContent() {
 
       {/* ── Body ────────────────────────────────────────────────────────────── */}
       <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
-        <div style={{ maxWidth: 900, margin: "0 auto", padding: "24px 44px 48px" }}>
+        <div className="search-results" style={{ maxWidth: 900, margin: "0 auto", padding: "24px 44px 48px" }}>
 
           {/* Loading */}
           {isLoading && (
@@ -412,6 +413,10 @@ export default function SearchPage() {
       }>
         <SearchContent />
       </Suspense>
+
+      <div className="bottom-tab-wrapper">
+        <BottomTabBar active="Today" />
+      </div>
     </div>
   );
 }

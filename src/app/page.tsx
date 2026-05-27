@@ -151,7 +151,7 @@ export default function Home() {
       </div>
 
       {/* ── Bottom tab bar (mobile only) ────────────────────────────────────── */}
-      <div className="mobile-only" style={{ flexDirection: "column", flexShrink: 0 }}>
+      <div className="bottom-tab-wrapper" style={{ flexShrink: 0 }}>
         <BottomTabBar active="Today" />
       </div>
     </div>

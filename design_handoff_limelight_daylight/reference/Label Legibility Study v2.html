@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Limelight — Country label legibility (v2)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    /* Effective on-screen heat tones: 0.8 * YlOrRd stop + 0.2 * basemap dark (#0c0c12)        */
+    /* (heat-fill uses fill-opacity 0.8 over dark-v11 basemap)                                 */
+    --h0:  #cecea7;  /* score   0  · YlOrRd #ffffcc */
+    --h12: #ceca87;  /* score  12  · YlOrRd #ffeda0 */
+    --h25: #cdb066;  /* score  25  · YlOrRd #fed976 */
+    --h37: #cd9244;  /* score  37  · YlOrRd #feb24c */
+    --h50: #cc7437;  /* score  50  · YlOrRd #fd8d3c */
+    --h62: #cb4126;  /* score  62  · YlOrRd #fc4e2a */
+    --h75: #b6181a;  /* score  75  · YlOrRd #e31a1c */
+    --h87: #97031f;  /* score  87  · YlOrRd #bd0026 */
+    --h100:#690222;  /* score 100  · YlOrRd #800026 */
+    --nodata: #0c0c12; /* dark-v11 basemap where heat-fill is absent */
+    --space:  #050811;
+
+    --ink:     #ececec;
+    --ink-dim: #9aa0aa;
+    --ink-mute:#5b626d;
+    --rule:    #1f242d;
+    --bg:      #0c0f15;
+    --panel:   #11151c;
+    --ok:      #a9e1b6;
+    --warn:    #f1c890;
+    --bad:     #ff9c84;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: 'IBM Plex Sans', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  body { padding: 64px clamp(24px, 6vw, 96px) 120px; max-width: 1520px; margin: 0 auto; }
+
+  header.doc { border-bottom: 1px solid var(--rule); padding-bottom: 28px; margin-bottom: 40px; }
+  .eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-mute); }
+  h1 { font-size: 34px; font-weight: 600; letter-spacing: -0.01em; margin: 10px 0 8px; }
+  .lede { color: var(--ink-dim); font-size: 16px; line-height: 1.55; max-width: 72ch; margin: 0; }
+  .lede b { color: var(--ink); font-weight: 500; }
+
+  section { margin: 56px 0; }
+  h2 { font-size: 22px; font-weight: 600; letter-spacing: -0.005em; margin: 0 0 6px; }
+  h2 .num { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--ink-mute); margin-right: 12px; letter-spacing: 0.06em; }
+  .meta { color: var(--ink-dim); font-size: 14px; line-height: 1.6; max-width: 76ch; margin: 0 0 22px; }
+  .meta b { color: var(--ink); font-weight: 500; }
+  .meta code { font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; background: #0a0d12; border: 1px solid var(--rule); padding: 1px 6px; border-radius: 4px; color: #e0d7bd; }
+
+  /* ─── Diagnostic strip: read of current code ─── */
+  .diag {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
+    border: 1px solid var(--rule); border-radius: 14px;
+    overflow: hidden;
+  }
+  .diag > div { padding: 22px 24px; }
+  .diag .head { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-mute); margin-bottom: 10px; }
+  .diag h3 { margin: 0 0 6px; font-size: 17px; font-weight: 600; }
+  .diag p { margin: 0 0 8px; color: var(--ink-dim); font-size: 13.5px; line-height: 1.55; }
+  .diag code { font-family: 'IBM Plex Mono', monospace; font-size: 12px; background: #0a0d12; border: 1px solid var(--rule); padding: 1px 5px; border-radius: 3px; color: #e0d7bd; }
+  .diag .left  { background: #10141b; border-right: 1px solid var(--rule); }
+  .diag .right { background: #10141b; }
+  .diag ul { margin: 6px 0 0; padding-left: 18px; color: var(--ink-dim); font-size: 13.5px; line-height: 1.6; }
+
+  /* ─── Effective palette strip ─── */
+  .palette {
+    display: grid; grid-template-columns: repeat(10, 1fr); gap: 0;
+    border-radius: 10px; overflow: hidden; border: 1px solid var(--rule);
+    margin-bottom: 8px;
+  }
+  .stop {
+    aspect-ratio: 1 / 1.4;
+    padding: 10px 8px 12px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; letter-spacing: 0.06em;
+  }
+  .stop .s { opacity: 0.65; }
+  .stop .h { opacity: 0.55; }
+  .stop .preview { font-family: 'Barlow Condensed'; font-weight: 600; font-size: 16px; letter-spacing: 0; }
+  .palette-note { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink-mute); margin-top: 4px; }
+
+  /* tint metadata on light vs dark cells */
+  .stop.lite .s, .stop.lite .h { color: #1a1408; }
+  .stop.dark .s, .stop.dark .h { color: #c7bda0; }
+
+  /* ─── Approach swatches ─── */
+  .swatches {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    gap: 2px;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--rule);
+  }
+  .sw {
+    aspect-ratio: 1 / 1.25;
+    position: relative;
+    padding: 12px 10px 14px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    overflow: hidden;
+  }
+  .sw .tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9.5px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.55;
+  }
+  .sw.lite .tag { color: #2c2410; }
+  .sw.dark .tag { color: #8a8a98; }
+
+  .lab {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 600;
+    font-size: 13px;
+    line-height: 1.05;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+  }
+  .lab.r { font-weight: 700; font-size: 16px; letter-spacing: 0.14em; text-transform: uppercase; opacity: 0.85; }
+  .lab.sm { font-size: 11px; }
+  .labs { display: flex; flex-direction: column; gap: 5px; align-items: flex-start; }
+
+  /* — Approach A: current (warm parchment + heavy halo) — */
+  .ap-current .lab { color: #f0e0c8; text-shadow:
+    -1px -1px 0 rgba(0,0,0,0.92), 1px -1px 0 rgba(0,0,0,0.92),
+    -1px  1px 0 rgba(0,0,0,0.92), 1px  1px 0 rgba(0,0,0,0.92),
+     0 0 3px rgba(0,0,0,0.6);
+  }
+  /* — Approach B: data-driven adaptive (the recommendation) — */
+  .ap-adaptive .sw[data-score="0"]   .lab { color: #f0e0c8; text-shadow: 0 0 2px rgba(0,0,0,.95), 0 1px 1px rgba(0,0,0,.85); }
+  .ap-adaptive .sw[data-score="12"]  .lab,
+  .ap-adaptive .sw[data-score="25"]  .lab,
+  .ap-adaptive .sw[data-score="37"]  .lab { color: #1a140a; text-shadow: 0 0 2px rgba(245,235,210,.7), 0 1px 0 rgba(245,235,210,.5); }
+  .ap-adaptive .sw[data-score="50"]  .lab { color: #1a140a; text-shadow: 0 0 2px rgba(245,235,210,.55); }
+  .ap-adaptive .sw[data-score="62"]  .lab,
+  .ap-adaptive .sw[data-score="75"]  .lab,
+  .ap-adaptive .sw[data-score="87"]  .lab,
+  .ap-adaptive .sw[data-score="100"] .lab { color: #fff3df; text-shadow: 0 0 2px rgba(0,0,0,.95), 0 1px 1px rgba(0,0,0,.8); }
+  .ap-adaptive .sw[data-score="space"] .lab { color: #d8d0bc; text-shadow: 0 0 2px rgba(0,0,0,.9); }
+
+  /* — Approach C: current with halo bumped to 3.5px — */
+  .ap-strong .lab { color: #f0e0c8; text-shadow:
+    -1.5px -1.5px 0 #000, 1.5px -1.5px 0 #000,
+    -1.5px  1.5px 0 #000, 1.5px  1.5px 0 #000,
+    -1.5px 0 0 #000, 1.5px 0 0 #000, 0 -1.5px 0 #000, 0 1.5px 0 #000,
+     0 0 4px rgba(0,0,0,0.7);
+  }
+
+  /* ─── Summary block ─── */
+  .summary { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 13.5px; }
+  .summary th, .summary td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  .summary th { color: var(--ink-mute); font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 500; }
+  .summary td:first-child { color: var(--ink); font-weight: 500; width: 22%; }
+  .summary td { color: var(--ink-dim); line-height: 1.5; }
+  .v { display: inline-block; padding: 2px 8px; border-radius: 4px; font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; }
+  .v-no   { background: rgba(232,74,42,0.14); color: var(--bad); border: 1px solid rgba(232,74,42,0.35); }
+  .v-ok   { background: rgba(232,168,90,0.14); color: var(--warn); border: 1px solid rgba(232,168,90,0.35); }
+  .v-good { background: rgba(74,158,98,0.16); color: var(--ok); border: 1px solid rgba(74,158,98,0.4); }
+
+  /* ─── Recommendation block ─── */
+  .rec { margin-top: 88px; border: 1px solid var(--rule); border-radius: 16px; overflow: hidden; background: var(--panel); }
+  .rec-head { padding: 22px 26px 18px; border-bottom: 1px solid var(--rule); display: flex; gap: 14px; align-items: baseline; flex-wrap: wrap; }
+  .rec-head h2 { margin: 0; }
+  .pill { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; padding: 4px 8px; border-radius: 999px; }
+  .pill.green { color: #b9e4c2; background: rgba(74,158,98,0.16); border: 1px solid rgba(74,158,98,0.4); }
+  .pill.amber { color: #f1c890; background: rgba(232,168,90,0.14); border: 1px solid rgba(232,168,90,0.35); }
+  .rec-body { padding: 24px 28px; }
+  .rec-body h3 { font-size: 15px; margin: 22px 0 8px; font-weight: 600; }
+  .rec-body h3:first-child { margin-top: 0; }
+  .rec-body p, .rec-body li { color: var(--ink-dim); font-size: 14px; line-height: 1.6; }
+  .rec-body ul { padding-left: 18px; margin: 0; }
+  .rec-body code { font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; background: #0a0d12; border: 1px solid var(--rule); padding: 1px 6px; border-radius: 4px; color: #e0d7bd; }
+  pre.code {
+    background: #07090e; border: 1px solid var(--rule); border-radius: 8px;
+    padding: 16px 18px; overflow: auto; font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px; line-height: 1.6; color: #d8d0bc;
+    margin: 8px 0 0;
+  }
+  pre.code .k { color: #c08aff; }
+  pre.code .s { color: #e2b07c; }
+  pre.code .c { color: #6b7280; font-style: italic; }
+  pre.code .n { color: #93c5fd; }
+  pre.code .fn { color: #7dd3fc; }
+  pre.code .p { color: #fca5a5; }
+
+  .stack { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 18px; }
+  @media (max-width: 1000px) { .stack { grid-template-columns: 1fr; } }
+  .card { background: #0d1118; border: 1px solid var(--rule); border-radius: 10px; padding: 18px 20px; }
+  .card .h { font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-mute); margin-bottom: 6px; }
+  .card h4 { margin: 0 0 6px; font-size: 15px; font-weight: 600; }
+  .card p { margin: 0; color: var(--ink-dim); font-size: 13.5px; line-height: 1.55; }
+
+  footer { margin-top: 80px; color: var(--ink-mute); font-size: 12px; font-family: 'IBM Plex Mono', monospace; letter-spacing: 0.04em; }
+
+  .changelog {
+    display: flex; gap: 16px; align-items: baseline;
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink-mute);
+    margin-top: 14px;
+  }
+  .changelog .dot { width: 6px; height: 6px; border-radius: 999px; background: #4ade80; display: inline-block; vertical-align: middle; margin-right: 6px; }
+</style>
+</head>
+<body>
+
+<header class="doc">
+  <div class="eyebrow">Limelight · design note · label legibility · v2 (post-code-review)</div>
+  <h1>Country labels on the news-intensity heatmap</h1>
+  <p class="lede">After reading the repo: you already apply <code>#f0e0c8</code> warm parchment + <code>rgba(0,0,0,0.92)</code> 2.5px halo to the <code>country-label</code> layer. That&rsquo;s the right floor, but it's still <b>one color across a 9-stop YlOrRd palette</b> that ranges from cream to near-black, plus a no-data dark and the space background. A single ink will always trade legibility on one end for the other. The fix is a <b>data-driven label color</b> derived from the same score that drives the fill.</p>
+  <div class="changelog">
+    <span><span class="dot"></span>v2 changes</span>
+    <span>· effective palette computed from <code>fill-opacity 0.8</code> over dark-v11 basemap</span>
+    <span>· Mapbox-native code, not CSS</span>
+    <span>· score-bucketed recommendation</span>
+  </div>
+</header>
+
+<!-- ─── Diagnostic: what's in the code today ─── -->
+<section>
+  <h2><span class="num">01</span>What&rsquo;s in <code>map-view.tsx</code> today</h2>
+  <p class="meta">Read directly from <code>kkartikeye/Limelight@main</code>. Your <code>LABEL_STYLES</code> table is well-considered &mdash; the per-layer color hierarchy (countries warmer than cities warmer than water) is a nice touch. The issue is purely with <code>country-label</code> being a single color across all heat fills.</p>
+  <div class="diag">
+    <div class="left">
+      <div class="head">Current paint &middot; <code>country-label</code></div>
+      <h3>Warm parchment + heavy halo</h3>
+      <p><b>text-color</b> <code>#f0e0c8</code> &mdash; warm parchment</p>
+      <p><b>text-halo-color</b> <code>rgba(0,0,0,0.92)</code></p>
+      <p><b>text-halo-width</b> <code>2.5px</code></p>
+      <p style="margin-top:14px;color:var(--ink-mute);font-size:12.5px">Heat fill sits below labels at <code>fill-opacity 0.8</code> over the dark-v11 basemap. YlOrRd ColorBrewer stops <code>0 &rarr; 100</code>.</p>
+    </div>
+    <div class="right">
+      <div class="head">Where it still struggles</div>
+      <h3>Single-color failure modes</h3>
+      <ul>
+        <li><b>Cream/yellow countries</b> (score 0&ndash;25): the parchment <code>#f0e0c8</code> sits inside the YlOrRd yellow family. Halo carries the contrast alone &mdash; legible but visually muddy.</li>
+        <li><b>Dark red countries</b> (score 75+): parchment-on-dark-red works, but the label loses semantic weight against the alarming fill.</li>
+        <li><b>No-data countries</b> on the dark basemap: parchment works, halo is wasted.</li>
+        <li><b>Region labels</b> (EUROPE / ASIA / AFRICA) inherit the same color &mdash; they should be visibly demoted.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ─── Effective palette ─── -->
+<section>
+  <h2><span class="num">02</span>The effective on-screen palette</h2>
+  <p class="meta">Your heat layer paints YlOrRd at <code>fill-opacity 0.8</code> over the dark-v11 basemap (≈<code>#0c0c12</code>). The labels don't sit on the raw ColorBrewer stops &mdash; they sit on these mixed tones, which run noticeably darker than the source. Recommendations need to test against these, not the raw palette.</p>
+  <div class="palette">
+    <div class="stop dark" style="background:var(--space)">     <span class="s">space</span> <span class="preview" style="color:#f0e0c8">Aa</span> <span class="h">basemap</span></div>
+    <div class="stop dark" style="background:var(--nodata)">    <span class="s">no data</span> <span class="preview" style="color:#f0e0c8">Aa</span> <span class="h">#0c0c12</span></div>
+    <div class="stop lite" style="background:var(--h0)">        <span class="s">0</span> <span class="preview" style="color:#1a140a">Aa</span> <span class="h">#cecea7</span></div>
+    <div class="stop lite" style="background:var(--h12)">       <span class="s">12</span> <span class="preview" style="color:#1a140a">Aa</span> <span class="h">#ceca87</span></div>
+    <div class="stop lite" style="background:var(--h25)">       <span class="s">25</span> <span class="preview" style="color:#1a140a">Aa</span> <span class="h">#cdb066</span></div>
+    <div class="stop lite" style="background:var(--h37)">       <span class="s">37</span> <span class="preview" style="color:#1a140a">Aa</span> <span class="h">#cd9244</span></div>
+    <div class="stop lite" style="background:var(--h50)">       <span class="s">50</span> <span class="preview" style="color:#fff3df">Aa</span> <span class="h">#cc7437</span></div>
+    <div class="stop dark" style="background:var(--h62)">       <span class="s">62</span> <span class="preview" style="color:#fff3df">Aa</span> <span class="h">#cb4126</span></div>
+    <div class="stop dark" style="background:var(--h75)">       <span class="s">75</span> <span class="preview" style="color:#fff3df">Aa</span> <span class="h">#b6181a</span></div>
+    <div class="stop dark" style="background:var(--h87)">       <span class="s">87</span> <span class="preview" style="color:#fff3df">Aa</span> <span class="h">#97031f</span></div>
+  </div>
+  <div class="palette-note">Light bucket: score 0&ndash;50 &middot; Dark bucket: score 62&ndash;100, no-data, space. The crossover sits right where YlOrRd shifts from yellow-family to red-family.</div>
+</section>
+
+<!-- ─── Approach A: current ─── -->
+<section>
+  <h2><span class="num">A</span>Current &mdash; warm parchment + 2.5px halo</h2>
+  <p class="meta">Reproduced exactly from your code. Note how labels read as &ldquo;flat warm-white text&rdquo; everywhere &mdash; competing with the heat colors instead of cooperating with them. On the cream end the halo is doing all the work and the text feels disconnected from the country it sits on.</p>
+  <div class="swatches ap-current">
+    <div class="sw dark" style="background:var(--space)"  data-score="space"><span class="tag">SPACE</span> <div class="labs"><span class="lab r">ASIA</span><span class="lab">Indian Ocean</span></div></div>
+    <div class="sw dark" style="background:var(--nodata)" data-score="0"    ><span class="tag">NO DATA</span><div class="labs"><span class="lab">France</span><span class="lab sm">Cambodia</span></div></div>
+    <div class="sw lite" style="background:var(--h0)"    data-score="0"    ><span class="tag">0</span>      <div class="labs"><span class="lab">Egypt</span><span class="lab sm">Chad</span></div></div>
+    <div class="sw lite" style="background:var(--h12)"   data-score="12"   ><span class="tag">12</span>     <div class="labs"><span class="lab">Sudan</span><span class="lab sm">Niger</span></div></div>
+    <div class="sw lite" style="background:var(--h25)"   data-score="25"   ><span class="tag">25</span>     <div class="labs"><span class="lab">Saudi Arabia</span></div></div>
+    <div class="sw lite" style="background:var(--h37)"   data-score="37"   ><span class="tag">37</span>     <div class="labs"><span class="lab">Russia</span><span class="lab sm">China</span></div></div>
+    <div class="sw lite" style="background:var(--h50)"   data-score="50"   ><span class="tag">50</span>     <div class="labs"><span class="lab">Pakistan</span></div></div>
+    <div class="sw dark" style="background:var(--h62)"   data-score="62"   ><span class="tag">62</span>     <div class="labs"><span class="lab">India</span></div></div>
+    <div class="sw dark" style="background:var(--h75)"   data-score="75"   ><span class="tag">75</span>     <div class="labs"><span class="lab">Iran</span></div></div>
+    <div class="sw dark" style="background:var(--h87)"   data-score="87"   ><span class="tag">87+</span>    <div class="labs"><span class="lab">Yemen</span></div></div>
+  </div>
+</section>
+
+<!-- ─── Approach B: adaptive (recommendation) ─── -->
+<section>
+  <h2><span class="num">B</span>Recommended &mdash; score-bucketed adaptive ink</h2>
+  <p class="meta">Three buckets, picked from the score you already have on every feature:
+    <b>Light fill</b> (score 0&ndash;50) &rarr; near-black ink <code>#1a140a</code> + soft cream halo &middot;
+    <b>Dark fill</b> (score 62&ndash;100) &rarr; warm-white ink <code>#fff3df</code> + dark halo &middot;
+    <b>No data / space</b> &rarr; warm parchment <code>#f0e0c8</code> + dark halo.
+    Labels now <i>belong</i> to their country &mdash; the ink reads as &ldquo;data label&rdquo; not &ldquo;chrome overlaid on data.&rdquo;</p>
+  <div class="swatches ap-adaptive">
+    <div class="sw dark" style="background:var(--space)"  data-score="space"><span class="tag">SPACE</span> <div class="labs"><span class="lab r">ASIA</span><span class="lab">Indian Ocean</span></div></div>
+    <div class="sw dark" style="background:var(--nodata)" data-score="0"    ><span class="tag">NO DATA</span><div class="labs"><span class="lab">France</span><span class="lab sm">Cambodia</span></div></div>
+    <div class="sw lite" style="background:var(--h0)"    data-score="12"   ><span class="tag">0</span>      <div class="labs"><span class="lab">Egypt</span><span class="lab sm">Chad</span></div></div>
+    <div class="sw lite" style="background:var(--h12)"   data-score="12"   ><span class="tag">12</span>     <div class="labs"><span class="lab">Sudan</span><span class="lab sm">Niger</span></div></div>
+    <div class="sw lite" style="background:var(--h25)"   data-score="25"   ><span class="tag">25</span>     <div class="labs"><span class="lab">Saudi Arabia</span></div></div>
+    <div class="sw lite" style="background:var(--h37)"   data-score="37"   ><span class="tag">37</span>     <div class="labs"><span class="lab">Russia</span><span class="lab sm">China</span></div></div>
+    <div class="sw lite" style="background:var(--h50)"   data-score="50"   ><span class="tag">50</span>     <div class="labs"><span class="lab">Pakistan</span></div></div>
+    <div class="sw dark" style="background:var(--h62)"   data-score="62"   ><span class="tag">62</span>     <div class="labs"><span class="lab">India</span></div></div>
+    <div class="sw dark" style="background:var(--h75)"   data-score="75"   ><span class="tag">75</span>     <div class="labs"><span class="lab">Iran</span></div></div>
+    <div class="sw dark" style="background:var(--h87)"   data-score="87"   ><span class="tag">87+</span>    <div class="labs"><span class="lab">Yemen</span></div></div>
+  </div>
+</section>
+
+<!-- ─── Approach C: stronger halo, same ink ─── -->
+<section>
+  <h2><span class="num">C</span>Cheaper alternative &mdash; stronger halo, same ink</h2>
+  <p class="meta">If touching the label data pipeline is too much for v1: bump halo to <code>3.5px</code> with full-black <code>rgba(0,0,0,1)</code>. This buys you readability without changing the data path, at the cost of labels looking more &ldquo;outlined sticker&rdquo; than typeset on a globe.</p>
+  <div class="swatches ap-strong">
+    <div class="sw dark" style="background:var(--space)"  data-score="space"><span class="tag">SPACE</span> <div class="labs"><span class="lab r">ASIA</span><span class="lab">Indian Ocean</span></div></div>
+    <div class="sw dark" style="background:var(--nodata)" data-score="0"    ><span class="tag">NO DATA</span><div class="labs"><span class="lab">France</span><span class="lab sm">Cambodia</span></div></div>
+    <div class="sw lite" style="background:var(--h0)"    data-score="0"    ><span class="tag">0</span>      <div class="labs"><span class="lab">Egypt</span><span class="lab sm">Chad</span></div></div>
+    <div class="sw lite" style="background:var(--h12)"   data-score="12"   ><span class="tag">12</span>     <div class="labs"><span class="lab">Sudan</span><span class="lab sm">Niger</span></div></div>
+    <div class="sw lite" style="background:var(--h25)"   data-score="25"   ><span class="tag">25</span>     <div class="labs"><span class="lab">Saudi Arabia</span></div></div>
+    <div class="sw lite" style="background:var(--h37)"   data-score="37"   ><span class="tag">37</span>     <div class="labs"><span class="lab">Russia</span><span class="lab sm">China</span></div></div>
+    <div class="sw lite" style="background:var(--h50)"   data-score="50"   ><span class="tag">50</span>     <div class="labs"><span class="lab">Pakistan</span></div></div>
+    <div class="sw dark" style="background:var(--h62)"   data-score="62"   ><span class="tag">62</span>     <div class="labs"><span class="lab">India</span></div></div>
+    <div class="sw dark" style="background:var(--h75)"   data-score="75"   ><span class="tag">75</span>     <div class="labs"><span class="lab">Iran</span></div></div>
+    <div class="sw dark" style="background:var(--h87)"   data-score="87"   ><span class="tag">87+</span>    <div class="labs"><span class="lab">Yemen</span></div></div>
+  </div>
+</section>
+
+<!-- ─── Summary ─── -->
+<section>
+  <h2><span class="num">SUM</span>Trade-offs</h2>
+  <table class="summary">
+    <thead><tr><th>Approach</th><th>Light fills (0&ndash;50)</th><th>Dark fills (62&ndash;100)</th><th>No-data + space</th><th>Code cost</th><th>Verdict</th></tr></thead>
+    <tbody>
+      <tr><td>A &middot; Current</td>     <td>OK &mdash; halo carries it</td><td>OK &mdash; halo carries it</td><td>Good</td><td>Already shipped</td><td><span class="v v-ok">Baseline</span></td></tr>
+      <tr><td>C &middot; Stronger halo</td><td>Good &mdash; but stickery</td><td>Good &mdash; but stickery</td><td>Good</td><td>One paint prop</td><td><span class="v v-ok">Quick win</span></td></tr>
+      <tr><td>B &middot; Adaptive ink</td> <td>Great &mdash; ink belongs</td><td>Great &mdash; ink belongs</td><td>Great</td><td>Custom symbol layer</td><td><span class="v v-good">Recommended</span></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ─── Recommendation block ─── -->
+<div class="rec">
+  <div class="rec-head">
+    <span class="pill green">Recommendation</span>
+    <span class="pill amber">Ship B; fall back to C if scope is tight</span>
+    <h2>Drive label color from the score you already have</h2>
+  </div>
+
+  <div class="rec-body">
+
+    <h3>Why bucketed, not continuous</h3>
+    <p>A continuous luminance-driven color is tempting but reads as visual noise &mdash; every country&rsquo;s label ends up a slightly different gray. Three buckets aligned to the YlOrRd palette&rsquo;s natural break (yellows &rarr; reds at the score-50 hinge) gives you a legible <i>system</i>, not just legible labels.</p>
+
+    <h3>The labels need to come off your <code>countries</code> source</h3>
+    <p>Mapbox&rsquo;s basemap <code>country-label</code> layer doesn&rsquo;t know about your scores, so a data-driven <code>text-color</code> expression there has nothing to read. Build a sibling symbol layer on the <code>countries</code> source you already maintain &mdash; one line in <code>heat-layer.tsx</code> &mdash; then hide the basemap&rsquo;s country labels.</p>
+
+    <h3>Drop into <code>heat-layer.tsx</code> (after the heat-fill / heat-outline blocks)</h3>
+<pre class="code"><span class="c">// Score-bucketed text color &amp; halo — reads same score as the fill.</span>
+<span class="c">// 0–50  → near-black ink + cream halo (light heat tones)</span>
+<span class="c">// 62+   → warm-white ink + dark halo (deep heat tones)</span>
+<span class="c">// no-data → warm parchment + dark halo (basemap shows through)</span>
+<span class="k">const</span> <span class="fn">LABEL_TEXT_COLOR</span>: mapboxgl.Expression = [
+  <span class="s">"case"</span>,
+  [<span class="s">"=="</span>, [<span class="s">"coalesce"</span>, [<span class="s">"get"</span>, <span class="s">"score"</span>], <span class="n">0</span>], <span class="n">0</span>], <span class="s">"#f0e0c8"</span>, <span class="c">// no data</span>
+  [<span class="s">"&lt;"</span>,  [<span class="s">"get"</span>, <span class="s">"score"</span>], <span class="n">55</span>],                <span class="s">"#1a140a"</span>, <span class="c">// light bucket</span>
+  <span class="s">"#fff3df"</span>                                                  <span class="c">// dark bucket</span>
+];
+
+<span class="k">const</span> <span class="fn">LABEL_HALO_COLOR</span>: mapboxgl.Expression = [
+  <span class="s">"case"</span>,
+  [<span class="s">"=="</span>, [<span class="s">"coalesce"</span>, [<span class="s">"get"</span>, <span class="s">"score"</span>], <span class="n">0</span>], <span class="n">0</span>], <span class="s">"rgba(0,0,0,0.92)"</span>,
+  [<span class="s">"&lt;"</span>,  [<span class="s">"get"</span>, <span class="s">"score"</span>], <span class="n">55</span>],                <span class="s">"rgba(240,224,200,0.85)"</span>,
+  <span class="s">"rgba(0,0,0,0.92)"</span>
+];
+
+map.<span class="fn">addLayer</span>({
+  id: <span class="s">"country-label-custom"</span>,
+  type: <span class="s">"symbol"</span>,
+  source: <span class="s">"countries"</span>,
+  layout: {
+    <span class="s">"text-field"</span>: [<span class="s">"get"</span>, <span class="s">"ADMIN"</span>],
+    <span class="s">"text-font"</span>: [<span class="s">"DIN Pro Medium"</span>, <span class="s">"Arial Unicode MS Regular"</span>],
+    <span class="s">"text-size"</span>: [<span class="s">"interpolate"</span>, [<span class="s">"linear"</span>], [<span class="s">"zoom"</span>],
+                  <span class="n">2</span>, <span class="n">11</span>,  <span class="n">4</span>, <span class="n">13</span>,  <span class="n">6</span>, <span class="n">15</span>],
+    <span class="s">"text-letter-spacing"</span>: <span class="n">0.02</span>,
+    <span class="s">"text-max-width"</span>: <span class="n">7</span>,
+    <span class="s">"symbol-sort-key"</span>: [<span class="s">"-"</span>, <span class="n">100</span>, [<span class="s">"coalesce"</span>, [<span class="s">"get"</span>, <span class="s">"score"</span>], <span class="n">0</span>]], <span class="c">// prioritise hot</span>
+  },
+  paint: {
+    <span class="s">"text-color"</span>: <span class="fn">LABEL_TEXT_COLOR</span>,
+    <span class="s">"text-halo-color"</span>: <span class="fn">LABEL_HALO_COLOR</span>,
+    <span class="s">"text-halo-width"</span>: <span class="n">1.6</span>,
+    <span class="s">"text-halo-blur"</span>: <span class="n">0.3</span>,
+  },
+});
+
+<span class="c">// Suppress the basemap country labels so they don't double up</span>
+<span class="k">if</span> (map.<span class="fn">getLayer</span>(<span class="s">"country-label"</span>)) {
+  map.<span class="fn">setLayoutProperty</span>(<span class="s">"country-label"</span>, <span class="s">"visibility"</span>, <span class="s">"none"</span>);
+}</pre>
+
+    <div class="stack">
+      <div class="card">
+        <div class="h">Why 55, not 50</div>
+        <h4>The bucket break</h4>
+        <p>Sets the light/dark crossover slightly above the YlOrRd mid-point so the <code>#fd8d3c</code> orange (score 50) still gets dark ink &mdash; that tone is borderline either way and dark ink reads as more confident on it. Tune to taste; 55 is a defensible default.</p>
+      </div>
+      <div class="card">
+        <div class="h">Why hide basemap labels</div>
+        <h4>Avoid double-stamping</h4>
+        <p>If you leave the basemap&rsquo;s <code>country-label</code> visible alongside the custom layer, Mapbox will render both and collide them. Suppress the basemap layer once your custom layer is in place; for countries with no heat-fill, the custom layer still draws because the source includes every feature.</p>
+      </div>
+      <div class="card">
+        <div class="h">Region labels</div>
+        <h4>Demote continents</h4>
+        <p>EUROPE / ASIA / AFRICA in your screenshot are the basemap&rsquo;s <code>continent-label</code> layer &mdash; not in your <code>LABEL_STYLES</code> dict. Add it and drop opacity to <code>~0.5</code>; they should read as quiet typographic chrome, not as data.</p>
+      </div>
+      <div class="card">
+        <div class="h">Ocean labels</div>
+        <h4>Italic, no halo, dim</h4>
+        <p>Add a <code>water-label</code> entry to <code>LABEL_STYLES</code>: <code>#9ab4c8</code>, halo width <code>1</code>. Oceans sit on the dark space background where halo just adds fuzz around perfectly-contrasted text.</p>
+      </div>
+    </div>
+
+    <h3>If you only have 5 minutes &mdash; ship C instead</h3>
+<pre class="code"><span class="c">// In LABEL_STYLES, country-label entry:</span>
+<span class="s">"country-label"</span>: {
+  color: <span class="s">"#f4ecd8"</span>,              <span class="c">// slightly cooler warm-white</span>
+  haloColor: <span class="s">"rgba(0,0,0,1)"</span>,   <span class="c">// from 0.92 → 1.0</span>
+  haloWidth: <span class="n">3.5</span>,                 <span class="c">// from 2.5 → 3.5</span>
+},</pre>
+    <p>That single change closes the gap on the no-data and hot-red countries. It won&rsquo;t make labels feel like they <i>belong</i> to their fills the way B does &mdash; but it stops them from being invisible.</p>
+
+  </div>
+</div>
+
+<footer>LIMELIGHT &middot; LABEL LEGIBILITY STUDY &middot; v2 &middot; grounded in kkartikeye/Limelight@main</footer>
+
+</body>
+</html>

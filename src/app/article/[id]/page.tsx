@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Header from "@/components/ui/header";
+import BottomTabBar from "@/components/ui/bottom-tab-bar";
 import { DL } from "@/lib/design-tokens";
 import { relativeTime } from "@/lib/utils/time";
 import { countryName } from "@/lib/utils/countries";
@@ -93,11 +94,11 @@ export default function ArticlePage({ params, searchParams }: PageProps) {
   const displayCountry = article?.countryCode ? countryName(article.countryCode) : null;
 
   return (
-    <div className="route-fade" style={{ display: "flex", flexDirection: "column", height: "100vh", background: DL.PAPER, overflow: "hidden", fontFamily: DL.SANS }}>
+    <div className="route-fade article-page" style={{ display: "flex", flexDirection: "column", height: "100vh", background: DL.PAPER, overflow: "hidden", fontFamily: DL.SANS }}>
       <Header active="Today" />
 
       {/* Breadcrumb */}
-      <div style={{
+      <div className="article-breadcrumb" style={{
         display: "flex", alignItems: "center", gap: 10,
         padding: "14px 44px 0", color: DL.DIM, fontSize: 12,
       }}>
@@ -151,10 +152,10 @@ export default function ArticlePage({ params, searchParams }: PageProps) {
       </div>
 
       {/* Body */}
-      <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
+      <div className="article-body" style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
 
         {/* Reading column */}
-        <div style={{ flex: 1, padding: "28px 44px 0", overflowY: "auto" }}>
+        <div className="article-content" style={{ flex: 1, padding: "28px 44px 0", overflowY: "auto" }}>
           {loading ? (
             <div style={{ paddingTop: 80, display: "flex", justifyContent: "center" }}>
               <svg className="animate-spin" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={DL.DIM} strokeWidth="2">
@@ -175,7 +176,7 @@ export default function ArticlePage({ params, searchParams }: PageProps) {
               </div>
 
               {/* Headline */}
-              <h1 style={{
+              <h1 className="article-headline" style={{
                 fontFamily: DL.DISPLAY, fontSize: 50, fontWeight: 400,
                 letterSpacing: -1.2, lineHeight: 1.02,
                 margin: "14px 0 16px", color: DL.INK,
@@ -258,8 +259,8 @@ export default function ArticlePage({ params, searchParams }: PageProps) {
           )}
         </div>
 
-        {/* Sidebar */}
-        <div style={{
+        {/* Sidebar — hidden on mobile */}
+        <div className="article-sidebar" style={{
           width: 360, flexShrink: 0,
           borderLeft: `1px solid ${DL.RULE}`,
           padding: "28px 36px 22px 28px",
@@ -341,6 +342,10 @@ export default function ArticlePage({ params, searchParams }: PageProps) {
             </>
           )}
         </div>
+      </div>
+
+      <div className="bottom-tab-wrapper">
+        <BottomTabBar active="Today" />
       </div>
     </div>
   );

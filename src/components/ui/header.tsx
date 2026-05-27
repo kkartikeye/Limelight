@@ -270,17 +270,75 @@ export default function Header({ active = "Today" }: HeaderProps) {
       </div>
       {authOpen && <AuthModal onClose={() => setAuthOpen(false)} />}
 
-      {/* Mobile: search icon → /search page */}
-      <button
-        className="mobile-only"
-        aria-label="Search"
-        onClick={() => router.push("/search")}
-        style={{ background: "none", border: "none", cursor: "pointer", color: DL.DIM, padding: 4 }}
-      >
-        <svg width="18" height="18" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-          <circle cx="9.5" cy="9.5" r="6" /><line x1="14.5" y1="14.5" x2="20" y2="20" />
-        </svg>
-      </button>
+      {/* Mobile: search + auth */}
+      <div className="mobile-only" style={{ alignItems: "center", gap: 8 }}>
+        <button
+          aria-label="Search"
+          onClick={() => router.push("/search")}
+          style={{ background: "none", border: "none", cursor: "pointer", color: DL.DIM, padding: 4, display: "flex" }}
+        >
+          <svg width="18" height="18" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <circle cx="9.5" cy="9.5" r="6" /><line x1="14.5" y1="14.5" x2="20" y2="20" />
+          </svg>
+        </button>
+
+        {user ? (
+          <div style={{ position: "relative" }}>
+            <button
+              onClick={() => setUserMenuOpen((v) => !v)}
+              title={user.email ?? "Account"}
+              style={{
+                width: 30, height: 30, borderRadius: 999,
+                background: DL.CORAL, color: "#fff",
+                border: "none", cursor: "pointer",
+                fontSize: 11, fontWeight: 700, fontFamily: DL.SANS,
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}
+            >
+              {(user.email ?? "U").slice(0, 2).toUpperCase()}
+            </button>
+            {userMenuOpen && (
+              <div style={{
+                position: "absolute", top: "calc(100% + 10px)", right: 0,
+                background: DL.CARD, borderRadius: 14,
+                boxShadow: "0 8px 32px rgba(24,22,19,0.14)",
+                border: `1px solid ${DL.RULE_2}`,
+                padding: "6px 0", minWidth: 180,
+                fontFamily: DL.SANS, zIndex: 50,
+                animation: "tooltip-fade-in 0.15s ease-out both",
+              }}>
+                <div style={{ padding: "8px 16px 10px", borderBottom: `1px solid ${DL.RULE_2}` }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: DL.INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {user.email}
+                  </div>
+                </div>
+                <button
+                  onClick={async () => { await signOut(); setUserMenuOpen(false); }}
+                  style={{
+                    display: "block", width: "100%", textAlign: "left",
+                    padding: "9px 16px", background: "none", border: "none",
+                    fontSize: 13, color: DL.DIM, cursor: "pointer", fontFamily: DL.SANS,
+                  }}
+                >
+                  Sign out
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <button
+            onClick={() => setAuthOpen(true)}
+            style={{
+              background: DL.INK, color: DL.PAPER,
+              border: "none", borderRadius: 999,
+              padding: "6px 12px", fontSize: 11, fontWeight: 600,
+              letterSpacing: 0.02, cursor: "pointer", fontFamily: DL.SANS,
+            }}
+          >
+            Sign in
+          </button>
+        )}
+      </div>
     </header>
   );
 }
