@@ -29,7 +29,6 @@ export async function GET(req: NextRequest) {
     .not("latitude",  "is", null)
     .not("longitude", "is", null)
     .gte("articles.published_at", since)
-    .order("articles.published_at", { ascending: false, referencedTable: "articles" })
     .limit(500);
 
   if (filterCategories.length > 0) {
@@ -50,7 +49,14 @@ export async function GET(req: NextRequest) {
     category: string | null;
   };
 
-  const features = (data ?? []).map((row) => {
+  // Sort newest-first in JS — avoids PostgREST foreign-table order syntax issues
+  const sorted = (data ?? []).slice().sort((a, b) => {
+    const aRow = a as unknown as { articles: { published_at: string } };
+    const bRow = b as unknown as { articles: { published_at: string } };
+    return new Date(bRow.articles.published_at).getTime() - new Date(aRow.articles.published_at).getTime();
+  });
+
+  const features = sorted.map((row) => {
     const article = (row.articles as unknown) as ArticleRow;
     return {
       type: "Feature" as const,
