@@ -10,6 +10,7 @@ import { useMapStore } from "@/lib/stores/map-store";
 import { useWatchlistStore } from "@/lib/stores/watchlist-store";
 import { useScores } from "@/lib/hooks/use-scores";
 import { usePins } from "@/lib/hooks/use-pins";
+import { DL } from "@/lib/design-tokens";
 import type { TopCategory } from "@/lib/types/scores";
 
 const INITIAL_VIEW_STATE = {
@@ -27,6 +28,7 @@ const FOG_DAYLIGHT: Parameters<mapboxgl.Map["setFog"]>[0] = {
   "star-intensity": 0,
 };
 
+const HINT_KEY = "ll:scroll-hint-seen";
 
 interface HoverInfo {
   name: string;
@@ -53,6 +55,19 @@ export default function MapView({ onSelectCountry }: MapViewProps) {
   const [mapLoaded, setMapLoaded] = useState(false);
   const [hoverInfo, setHoverInfo] = useState<HoverInfo | null>(null);
   const [containerWidth, setContainerWidth] = useState(0);
+
+  // ── Scroll-zoom discovery hint ─────────────────────────────────────────────
+  // Show once on first hover; dismissed permanently after any click on the map.
+  const [showScrollHint, setShowScrollHint] = useState(false);
+  const hintDismissed = useRef(
+    typeof window !== "undefined" && localStorage.getItem(HINT_KEY) === "1"
+  );
+
+  const dismissHint = () => {
+    setShowScrollHint(false);
+    hintDismissed.current = true;
+    try { localStorage.setItem(HINT_KEY, "1"); } catch { /* ignore */ }
+  };
 
   const { scores, isLoading } = useScores();
   const { pinsGeoJson } = usePins();
@@ -116,6 +131,11 @@ export default function MapView({ onSelectCountry }: MapViewProps) {
           x: e.point.x,
           y: e.point.y,
         });
+
+        // Show scroll-zoom hint on first hover (if not yet dismissed)
+        if (!hintDismissed.current) {
+          setShowScrollHint(true);
+        }
       });
 
       map.on("mouseleave", "heat-fill", () => {
@@ -143,6 +163,7 @@ export default function MapView({ onSelectCountry }: MapViewProps) {
         onSelectCountry?.(iso, name, score);
         setHoverInfo(null);
         map.scrollZoom.enable();
+        dismissHint();
       });
 
       // Ocean click intentionally does NOT call clearSelection() —
@@ -150,7 +171,10 @@ export default function MapView({ onSelectCountry }: MapViewProps) {
       // We still enable scroll-zoom on any click so users can explore.
     });
 
-    map.on("click", () => map.scrollZoom.enable());
+    map.on("click", () => {
+      map.scrollZoom.enable();
+      dismissHint();
+    });
 
     const handleDocumentClick = (e: MouseEvent) => {
       if (!containerRef.current?.contains(e.target as Node)) {
@@ -205,6 +229,44 @@ export default function MapView({ onSelectCountry }: MapViewProps) {
           y={hoverInfo.y}
           containerWidth={containerWidth}
         />
+      )}
+
+      {/* Scroll-zoom discovery hint — shown once on first hover, dismissed on click */}
+      {showScrollHint && (
+        <div
+          className="desktop-only"
+          style={{
+            position: "absolute",
+            bottom: 72, // sits above the filter bar
+            left: "50%",
+            transform: "translateX(-50%)",
+            pointerEvents: "none",
+            zIndex: 20,
+            animation: "tooltip-fade-in 0.25s ease-out both",
+          }}
+        >
+          <div style={{
+            display: "inline-flex", alignItems: "center", gap: 7,
+            background: "rgba(24,22,19,0.82)",
+            backdropFilter: "blur(8px)",
+            color: "#f6f3ec",
+            borderRadius: 999,
+            padding: "7px 14px",
+            fontFamily: DL.SANS,
+            fontSize: 12,
+            fontWeight: 500,
+            letterSpacing: 0.01,
+            whiteSpace: "nowrap",
+            boxShadow: "0 4px 16px rgba(24,22,19,0.18)",
+          }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4Z"/>
+              <path d="M8 16a6 6 0 0 0 8 0"/>
+              <line x1="12" y1="22" x2="12" y2="19"/>
+            </svg>
+            Click the map to enable scroll zoom
+          </div>
+        </div>
       )}
 
       {/* Projection toggle: deferred — globe only for now */}

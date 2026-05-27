@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
+import useSWR from "swr";
 import { getMockStories } from "@/lib/mock/mock-articles";
 import type { Article } from "@/lib/types/article";
 import type { TimeWindow, Category } from "@/lib/stores/map-store";
@@ -28,65 +29,47 @@ function mapApiArticle(a: ApiArticle): Article {
   };
 }
 
+const fetcher = (url: string) =>
+  fetch(url).then((r) => {
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json() as Promise<{ articles: ApiArticle[] }>;
+  });
+
 export function useArticles(
   countryCode: string,
   timeWindow: TimeWindow = "24h",
   categories: Category[] = ALL_CATEGORIES
 ): { articles: Article[]; loading: boolean; isLive: boolean; error: string | null } {
-  const [articles, setArticles] = useState<Article[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isLive, setIsLive] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Serialize categories so SWR treats different subsets as different keys.
+  const catParam =
+    categories.length > 0 && categories.length < ALL_CATEGORIES.length
+      ? `&categories=${categories.join(",")}`
+      : "";
 
-  useEffect(() => {
-    if (!countryCode) return;
+  // Null key → SWR skips fetch (no country yet, or all categories deselected).
+  const key =
+    countryCode && categories.length > 0
+      ? `/api/articles?country=${countryCode}&window=${timeWindow}${catParam}&limit=30`
+      : null;
 
-    // Zero categories — nothing can match; return empty immediately
-    if (categories.length === 0) {
-      setArticles([]);
-      setIsLive(false);
-      setError(null);
-      setLoading(false);
-      return;
+  const { data, isLoading, error: swrError } = useSWR(key, fetcher, {
+    revalidateOnFocus: false,
+    dedupingInterval: 30_000, // don't re-fetch the same country within 30 s
+    shouldRetryOnError: false,
+  });
+
+  const { articles, isLive } = useMemo(() => {
+    if (data?.articles && data.articles.length > 0) {
+      return { articles: data.articles.map(mapApiArticle), isLive: true };
     }
+    // Empty response or no fetch yet → fall back to mock data
+    return { articles: getMockStories(countryCode), isLive: false };
+  }, [data, countryCode]);
 
-    let active = true;
-    setLoading(true);
-    setError(null);
+  // Show loading skeleton only on the very first fetch for this key
+  const loading = isLoading && !data;
 
-    // Build category param only when a subset is selected
-    const catParam =
-      categories.length < ALL_CATEGORIES.length && categories.length > 0
-        ? `&categories=${categories.join(",")}`
-        : "";
-
-    fetch(`/api/articles?country=${countryCode}&window=${timeWindow}${catParam}&limit=30`)
-      .then((res) => res.json())
-      .then((data: { articles?: ApiArticle[] }) => {
-        if (!active) return;
-        if (data.articles && data.articles.length > 0) {
-          setArticles(data.articles.map(mapApiArticle));
-          setIsLive(true);
-        } else {
-          // Fall back to mock while DB is being populated
-          setArticles(getMockStories(countryCode));
-          setIsLive(false);
-        }
-      })
-      .catch((err: unknown) => {
-        if (active) {
-          const msg = err instanceof Error ? err.message : "Failed to load articles";
-          setError(msg);
-          setArticles(getMockStories(countryCode));
-          setIsLive(false);
-        }
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-
-    return () => { active = false; };
-  }, [countryCode, timeWindow, categories]);
+  const error = swrError instanceof Error ? swrError.message : swrError ? String(swrError) : null;
 
   return { articles, loading, isLive, error };
 }

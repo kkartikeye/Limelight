@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import Header from "@/components/ui/header";
 import BottomTabBar from "@/components/ui/bottom-tab-bar";
 import MapView from "@/components/map/map-view";
@@ -13,12 +14,22 @@ import { countryName as isoToName } from "@/lib/utils/countries";
 import { DL } from "@/lib/design-tokens";
 
 export default function Home() {
+  const router = useRouter();
+
   const {
     selectedCountry, selectedCountryName, selectedCountryScore,
     isPanelOpen, clearSelection,
   } = useMapStore();
 
   const { scores, isLoading, isMock, lastUpdated, nextRefreshIn, isAutoRefreshing } = useScores();
+
+  // On mobile (panel sidebar is hidden by CSS), navigate to the full country page
+  // instead of trying to open the panel. Desktop behaviour is unchanged.
+  const handleSelectCountry = useCallback((iso: string, name: string) => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      router.push(`/country/${iso}?name=${encodeURIComponent(name)}`);
+    }
+  }, [router]);
 
   // Find the highest-scoring country to show when nothing is selected
   const topCountry = useMemo(() => {
@@ -47,7 +58,7 @@ export default function Home() {
         >
           {/* Map takes all remaining height */}
           <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
-            <MapView />
+            <MapView onSelectCountry={handleSelectCountry} />
 
             {/* ── Hero text overlay — top-left of globe ────────────────────── */}
             <div
