@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import useSWR from "swr";
@@ -33,8 +33,6 @@ interface SearchResponse {
 interface TrendingResponse {
   trending: { query: string; count: number }[];
 }
-
-// ─── Fetcher ──────────────────────────────────────────────────────────────────
 
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
@@ -91,33 +89,19 @@ function SearchResultRow({ result }: { result: SearchResult }) {
   );
 }
 
-function CountryGroup({
-  countryCode, results,
-}: {
-  countryCode: string;
-  results: SearchResult[];
-}) {
-  const name = countryCode === "__unknown__"
-    ? "Unknown origin"
-    : countryName(countryCode);
+function CountryGroup({ countryCode, results }: { countryCode: string; results: SearchResult[] }) {
+  const name = countryCode === "__unknown__" ? "Unknown origin" : countryName(countryCode);
 
   return (
     <div style={{ marginBottom: 28 }}>
-      {/* Country header */}
-      <div style={{
-        display: "flex", alignItems: "center", gap: 10, marginBottom: 4,
-      }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
         <Link
           href={countryCode !== "__unknown__"
             ? `/country/${countryCode}?name=${encodeURIComponent(name)}`
             : "#"}
           style={{
-            fontFamily: DL.DISPLAY,
-            fontSize: 20,
-            fontWeight: 500,
-            letterSpacing: -0.4,
-            color: DL.INK,
-            textDecoration: "none",
+            fontFamily: DL.DISPLAY, fontSize: 20, fontWeight: 500,
+            letterSpacing: -0.4, color: DL.INK, textDecoration: "none",
           }}
           onMouseEnter={(e) => (e.currentTarget.style.color = DL.CORAL)}
           onMouseLeave={(e) => (e.currentTarget.style.color = DL.INK)}
@@ -137,9 +121,9 @@ function CountryGroup({
   );
 }
 
-// ─── Main page ────────────────────────────────────────────────────────────────
+// ─── Inner content — uses useSearchParams, must be inside <Suspense> ──────────
 
-export default function SearchPage() {
+function SearchContent() {
   const searchParamsHook = useSearchParams();
   const router = useRouter();
   const q = searchParamsHook.get("q") ?? "";
@@ -147,10 +131,7 @@ export default function SearchPage() {
   const [input, setInput] = useState(q);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Sync controlled input with URL q param (e.g. browser back/forward)
   useEffect(() => { setInput(q); }, [q]);
-
-  // Autofocus on mount
   useEffect(() => { inputRef.current?.focus(); }, []);
 
   const handleSubmit = useCallback(
@@ -164,7 +145,6 @@ export default function SearchPage() {
     [input, router]
   );
 
-  // ── Data fetching ──────────────────────────────────────────────────────────
   const { data: searchData, isLoading } = useSWR<SearchResponse>(
     q.length >= 2 ? `/api/search?q=${encodeURIComponent(q)}&limit=30` : null,
     fetcher,
@@ -177,7 +157,6 @@ export default function SearchPage() {
     { revalidateOnFocus: false, dedupingInterval: 300_000 }
   );
 
-  // Group results by country, sorted by article count desc
   const grouped = useMemo(() => {
     if (!searchData?.results) return [];
     const map = new Map<string, SearchResult[]>();
@@ -195,15 +174,7 @@ export default function SearchPage() {
   const noResults = hasQuery && !isLoading && (searchData?.total ?? 0) === 0;
 
   return (
-    <div
-      className="route-fade"
-      style={{
-        display: "flex", flexDirection: "column", height: "100vh",
-        background: DL.PAPER, overflow: "hidden", fontFamily: DL.SANS,
-      }}
-    >
-      <Header active="Today" />
-
+    <>
       {/* ── Search bar ─────────────────────────────────────────────────────── */}
       <div style={{
         padding: "20px 44px 0",
@@ -212,15 +183,12 @@ export default function SearchPage() {
         flexShrink: 0,
       }}>
         <form onSubmit={handleSubmit} style={{ display: "flex", gap: 10, alignItems: "center", maxWidth: 700 }}>
-          {/* Input */}
-          <div style={{
-            flex: 1, display: "flex", alignItems: "center", gap: 10,
-            background: DL.CARD,
-            border: `1.5px solid ${DL.RULE}`,
-            borderRadius: 12,
-            padding: "10px 16px",
-            transition: "border-color 0.15s",
-          }}
+          <div
+            style={{
+              flex: 1, display: "flex", alignItems: "center", gap: 10,
+              background: DL.CARD, border: `1.5px solid ${DL.RULE}`,
+              borderRadius: 12, padding: "10px 16px", transition: "border-color 0.15s",
+            }}
             onFocus={(e) => (e.currentTarget.style.borderColor = DL.CORAL)}
             onBlur={(e) => (e.currentTarget.style.borderColor = DL.RULE)}
           >
@@ -250,8 +218,6 @@ export default function SearchPage() {
               </button>
             )}
           </div>
-
-          {/* Submit */}
           <button
             type="submit"
             disabled={input.trim().length < 2}
@@ -261,19 +227,16 @@ export default function SearchPage() {
               color: input.trim().length >= 2 ? DL.PAPER : DL.DIM,
               border: "none", cursor: input.trim().length >= 2 ? "pointer" : "default",
               fontFamily: DL.SANS, fontSize: 13, fontWeight: 600,
-              transition: "all 0.15s",
-              flexShrink: 0,
+              transition: "all 0.15s", flexShrink: 0,
             }}
           >
             Search
           </button>
         </form>
 
-        {/* Result count / empty query cue */}
         <div style={{
           paddingTop: 10, paddingBottom: 12,
-          fontFamily: DL.MONO, fontSize: 10,
-          color: DL.DIM, letterSpacing: 0.08,
+          fontFamily: DL.MONO, fontSize: 10, color: DL.DIM, letterSpacing: 0.08,
         }}>
           {hasQuery && !isLoading && searchData
             ? `${searchData.total} result${searchData.total !== 1 ? "s" : ""} for "${searchData.query}"`
@@ -287,7 +250,7 @@ export default function SearchPage() {
       <div style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
         <div style={{ maxWidth: 900, margin: "0 auto", padding: "24px 44px 48px" }}>
 
-          {/* Loading skeleton */}
+          {/* Loading */}
           {isLoading && (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {Array.from({ length: 6 }, (_, i) => (
@@ -322,15 +285,14 @@ export default function SearchPage() {
               </div>
               <p style={{ fontSize: 13, color: DL.DIM, marginTop: 12, lineHeight: 1.5 }}>
                 No articles matched <strong>&ldquo;{q}&rdquo;</strong> in the selected time window.<br />
-                Try a broader term, or a different time range.
+                Try a broader term or a different time range.
               </p>
             </div>
           )}
 
-          {/* Empty state — no query yet */}
+          {/* Empty state */}
           {!hasQuery && (
             <div>
-              {/* Hero prompt */}
               <div style={{ paddingTop: 48, paddingBottom: 32 }}>
                 <div style={{
                   fontFamily: DL.MONO, fontSize: 10, letterSpacing: 0.18,
@@ -351,7 +313,6 @@ export default function SearchPage() {
                 </p>
               </div>
 
-              {/* Trending searches */}
               {(trendingData?.trending?.length ?? 0) > 0 && (
                 <div>
                   <div style={{
@@ -388,7 +349,6 @@ export default function SearchPage() {
                 </div>
               )}
 
-              {/* Suggested starting points */}
               <div style={{ marginTop: 36 }}>
                 <div style={{
                   fontFamily: DL.MONO, fontSize: 10, letterSpacing: 0.14,
@@ -406,8 +366,7 @@ export default function SearchPage() {
                         background: "transparent", color: DL.DIM,
                         border: `1px solid ${DL.RULE}`,
                         cursor: "pointer", fontSize: 13, fontWeight: 500,
-                        fontFamily: DL.SANS,
-                        transition: "all 0.12s",
+                        fontFamily: DL.SANS, transition: "all 0.12s",
                       }}
                       onMouseEnter={(e) => {
                         e.currentTarget.style.background = DL.PAPER_2;
@@ -427,6 +386,32 @@ export default function SearchPage() {
           )}
         </div>
       </div>
+    </>
+  );
+}
+
+// ─── Page shell — wraps SearchContent in Suspense (required for useSearchParams) ─
+
+export default function SearchPage() {
+  return (
+    <div
+      className="route-fade"
+      style={{
+        display: "flex", flexDirection: "column", height: "100vh",
+        background: DL.PAPER, overflow: "hidden", fontFamily: DL.SANS,
+      }}
+    >
+      <Header active="Today" />
+      <Suspense fallback={
+        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <svg className="animate-spin" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={DL.DIM} strokeWidth="2">
+            <circle cx="12" cy="12" r="10" strokeOpacity="0.25" />
+            <path d="M12 2a10 10 0 0 1 10 10" />
+          </svg>
+        </div>
+      }>
+        <SearchContent />
+      </Suspense>
     </div>
   );
 }
