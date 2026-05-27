@@ -10,6 +10,9 @@ const newsreader = Newsreader({
   style: ["normal", "italic"],
   variable: "--font-display",
   display: "swap",
+  // Next.js doesn't have font metric overrides for Newsreader; disabling
+  // suppresses the warning without any visual impact — display: swap handles FOUT.
+  adjustFontFallback: false,
 });
 
 const manrope = Manrope({
