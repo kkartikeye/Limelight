@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useArticles } from "@/lib/hooks/use-articles";
 import { useMapStore } from "@/lib/stores/map-store";
 import { useWatchlistStore } from "@/lib/stores/watchlist-store";
+import { useUser } from "@/lib/hooks/use-user";
+import { useReads } from "@/lib/hooks/use-reads";
 import { DL } from "@/lib/design-tokens";
 import { relativeTime } from "@/lib/utils/time";
 import { HeadlineSkeleton } from "@/components/ui/skeleton";
@@ -20,9 +22,9 @@ interface StoryPanelProps {
 }
 
 function HeadlineRow({
-  article, index, countryCode,
+  article, index, countryCode, isRead,
 }: {
-  article: Article; index: number; countryCode: string;
+  article: Article; index: number; countryCode: string; isRead?: boolean;
 }) {
   // Encode article metadata as search params so the reader page can render
   // even when the article ID isn't in Supabase (e.g. mock articles).
@@ -35,6 +37,8 @@ function HeadlineRow({
     cc: countryCode,
   });
 
+  const baseColor = isRead ? DL.DIM : DL.INK;
+
   return (
     <div style={{
       padding: "12px 0",
@@ -42,6 +46,7 @@ function HeadlineRow({
       display: "flex",
       gap: 12,
       alignItems: "flex-start",
+      opacity: isRead ? 0.65 : 1,
     }}>
       <span style={{
         width: 24, flexShrink: 0,
@@ -58,13 +63,13 @@ function HeadlineRow({
             fontFamily: DL.SANS,
             fontSize: 14,
             lineHeight: 1.32,
-            color: DL.INK,
-            fontWeight: 500,
+            color: baseColor,
+            fontWeight: isRead ? 400 : 500,
             textDecoration: "none",
             transition: "color 0.1s",
           }}
           onMouseEnter={(e) => (e.currentTarget.style.color = DL.CORAL)}
-          onMouseLeave={(e) => (e.currentTarget.style.color = DL.INK)}
+          onMouseLeave={(e) => (e.currentTarget.style.color = baseColor)}
         >
           {article.headline}
         </Link>
@@ -87,6 +92,8 @@ function HeadlineRow({
 export default function StoryPanel({ countryCode, countryName, score, onClose, isAutoSelected = false }: StoryPanelProps) {
   const { filters } = useMapStore();
   const { toggleWatch, isWatched } = useWatchlistStore();
+  const { user } = useUser();
+  const { readIds } = useReads();
   const watched = isWatched(countryCode);
   const { articles, loading, isLive } = useArticles(countryCode, filters.timeWindow, filters.categories);
 
@@ -96,6 +103,19 @@ export default function StoryPanel({ countryCode, countryName, score, onClose, i
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
+
+  // Mirror watchlist toggle to server when signed in
+  const handleToggleWatch = useCallback(() => {
+    const adding = !isWatched(countryCode);
+    toggleWatch(countryCode, countryName);
+    if (user) {
+      void fetch("/api/watchlist", {
+        method: adding ? "POST" : "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(adding ? { iso: countryCode, name: countryName } : { iso: countryCode }),
+      });
+    }
+  }, [user, toggleWatch, isWatched, countryCode, countryName]);
 
   const chipBg    = score >= 70 ? DL.CORAL_50 : "#f0ede7";
   const chipColor = score >= 70 ? DL.CORAL    : DL.DIM;
@@ -124,7 +144,7 @@ export default function StoryPanel({ countryCode, countryName, score, onClose, i
         </span>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button
-            onClick={() => toggleWatch(countryCode, countryName)}
+            onClick={handleToggleWatch}
             title={watched ? "Remove from watchlist" : "Watch this country"}
             style={{
               display: "inline-flex", alignItems: "center", gap: 5,
@@ -233,7 +253,9 @@ export default function StoryPanel({ countryCode, countryName, score, onClose, i
             ))}
           </div>
         ) : articles.length > 0 ? (
-          articles.map((a, i) => <HeadlineRow key={a.id} article={a} index={i} countryCode={countryCode} />)
+          articles.map((a, i) => (
+            <HeadlineRow key={a.id} article={a} index={i} countryCode={countryCode} isRead={readIds.has(a.id)} />
+          ))
         ) : (
           <div style={{ paddingTop: 40, textAlign: "center" }}>
             <p style={{ fontSize: 13, color: DL.DIM, fontFamily: DL.SANS }}>No recent coverage</p>

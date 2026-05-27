@@ -10,6 +10,8 @@ interface WatchlistState {
   watched: WatchedEntry[];
   toggleWatch: (iso: string, name: string) => void;
   isWatched: (iso: string) => boolean;
+  /** Replace the watched list — used when syncing from the server after sign-in. */
+  setWatched: (entries: WatchedEntry[]) => void;
 }
 
 export const useWatchlistStore = create<WatchlistState>()(
@@ -25,6 +27,11 @@ export const useWatchlistStore = create<WatchlistState>()(
         })),
 
       isWatched: (iso: string) => get().watched.some((w) => w.iso === iso),
+
+      setWatched: (entries: WatchedEntry[]) =>
+        set(() => ({
+          watched: entries,
+        })),
     }),
     {
       name: "limelight-watchlist",

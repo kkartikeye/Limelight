@@ -6,6 +6,7 @@ import Header from "@/components/ui/header";
 import { DL } from "@/lib/design-tokens";
 import { relativeTime } from "@/lib/utils/time";
 import { countryName } from "@/lib/utils/countries";
+import { useReads } from "@/lib/hooks/use-reads";
 
 interface ApiArticle {
   id: string;
@@ -43,6 +44,12 @@ export default function ArticlePage({ params, searchParams }: PageProps) {
 
   const [article, setArticle] = useState<ApiArticle | null>(null);
   const [loading, setLoading] = useState(true);
+  const { logRead } = useReads();
+
+  // Log this article as read (no-op for mock IDs or unauthenticated users)
+  useEffect(() => {
+    logRead(id);
+  }, [id, logRead]);
 
   useEffect(() => {
     fetch(`/api/articles/${id}`)

@@ -6,6 +6,9 @@ import Link from "next/link";
 import DLLogo from "./dl-logo";
 import { useWatchlistStore } from "@/lib/stores/watchlist-store";
 import { DL } from "@/lib/design-tokens";
+import { useUser } from "@/lib/hooks/use-user";
+import { useWatchlistSync } from "@/lib/hooks/use-watchlist-sync";
+import AuthModal from "./auth-modal";
 
 const NAV_ITEMS = ["Today", "Regions", "Topics", "Saved"] as const;
 type NavItem = (typeof NAV_ITEMS)[number];
@@ -28,6 +31,12 @@ function LiveClock() {
 export default function Header({ active = "Today" }: HeaderProps) {
   const router  = useRouter();
   const { watched } = useWatchlistStore();
+  const { user, signOut } = useUser();
+  const [authOpen, setAuthOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+
+  // Sync server watchlist into the Zustand store on sign-in
+  useWatchlistSync();
 
   // Desktop inline search popover state
   const [searchOpen, setSearchOpen] = useState(false);
@@ -193,19 +202,73 @@ export default function Header({ active = "Today" }: HeaderProps) {
         {/* Clock */}
         <span className="header-clock"><LiveClock /></span>
 
-        {/* Sign in */}
-        <button
-          className="header-signin font-body"
-          style={{
-            background: DL.INK, color: DL.PAPER,
-            border: "none", borderRadius: 999,
-            padding: "8px 16px", fontSize: 12, fontWeight: 600,
-            letterSpacing: 0.02, cursor: "pointer",
-          }}
-        >
-          Sign in
-        </button>
+        {/* Auth button */}
+        {user ? (
+          /* Avatar / user menu */
+          <div style={{ position: "relative" }}>
+            <button
+              className="header-signin font-body"
+              onClick={() => setUserMenuOpen((v) => !v)}
+              title={user.email ?? "Account"}
+              style={{
+                width: 32, height: 32,
+                background: DL.CORAL, color: "#fff",
+                border: "none", borderRadius: 999,
+                fontSize: 12, fontWeight: 700,
+                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                letterSpacing: 0.02, flexShrink: 0,
+              }}
+            >
+              {(user.email ?? "U").slice(0, 2).toUpperCase()}
+            </button>
+            {userMenuOpen && (
+              <div
+                style={{
+                  position: "absolute", top: "calc(100% + 10px)", right: 0,
+                  background: DL.CARD, borderRadius: 14,
+                  boxShadow: "0 8px 32px rgba(24,22,19,0.14)",
+                  border: `1px solid ${DL.RULE_2}`,
+                  padding: "6px 0", minWidth: 180,
+                  fontFamily: DL.SANS, zIndex: 50,
+                  animation: "tooltip-fade-in 0.15s ease-out both",
+                }}
+              >
+                <div style={{ padding: "8px 16px 10px", borderBottom: `1px solid ${DL.RULE_2}` }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: DL.INK, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {user.email}
+                  </div>
+                </div>
+                <button
+                  onClick={async () => { await signOut(); setUserMenuOpen(false); }}
+                  style={{
+                    display: "block", width: "100%", textAlign: "left",
+                    padding: "9px 16px", background: "none", border: "none",
+                    fontSize: 13, color: DL.DIM, cursor: "pointer", fontFamily: DL.SANS,
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = DL.PAPER; e.currentTarget.style.color = DL.INK; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = "none"; e.currentTarget.style.color = DL.DIM; }}
+                >
+                  Sign out
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <button
+            className="header-signin font-body"
+            onClick={() => setAuthOpen(true)}
+            style={{
+              background: DL.INK, color: DL.PAPER,
+              border: "none", borderRadius: 999,
+              padding: "8px 16px", fontSize: 12, fontWeight: 600,
+              letterSpacing: 0.02, cursor: "pointer",
+            }}
+          >
+            Sign in
+          </button>
+        )}
       </div>
+      {authOpen && <AuthModal onClose={() => setAuthOpen(false)} />}
 
       {/* Mobile: search icon → /search page */}
       <button
