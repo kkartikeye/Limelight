@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useArticles } from "@/lib/hooks/use-articles";
 import { useMapStore } from "@/lib/stores/map-store";
 import { useWatchlistStore } from "@/lib/stores/watchlist-store";
 import { useUser } from "@/lib/hooks/use-user";
 import { useReads } from "@/lib/hooks/use-reads";
+import { useRelativeTime } from "@/lib/hooks/use-relative-time";
 import { DL } from "@/lib/design-tokens";
-import { relativeTime } from "@/lib/utils/time";
 import { HeadlineSkeleton } from "@/components/ui/skeleton";
 import type { Article } from "@/lib/types/article";
 
@@ -37,6 +37,7 @@ function HeadlineRow({
     cc: countryCode,
   });
 
+  const timeAgo = useRelativeTime(article.publishedAt);
   const baseColor = isRead ? DL.DIM : DL.INK;
 
   return (
@@ -81,7 +82,7 @@ function HeadlineRow({
           <span>·</span>
           <span style={{ color: DL.CORAL, fontWeight: 600 }}>{article.category}</span>
           <span style={{ marginLeft: "auto", fontFamily: DL.MONO, fontSize: 10 }}>
-            {relativeTime(article.publishedAt)}
+            {timeAgo}
           </span>
         </div>
       </div>
@@ -116,6 +117,11 @@ export default function StoryPanel({ countryCode, countryName, score, onClose, i
       });
     }
   }, [user, toggleWatch, isWatched, countryCode, countryName]);
+
+  const sourceCount = useMemo(
+    () => new Set(articles.map((a) => a.source)).size,
+    [articles]
+  );
 
   const chipBg    = score >= 70 ? DL.CORAL_50 : "#f0ede7";
   const chipColor = score >= 70 ? DL.CORAL    : DL.DIM;
@@ -214,7 +220,7 @@ export default function StoryPanel({ countryCode, countryName, score, onClose, i
       }}>
         {[
           ["Articles", articles.length.toString(), DL.INK],
-          ["Sources",  new Set(articles.map((a) => a.source)).size.toString(), DL.INK],
+          ["Sources",  sourceCount.toString(), DL.INK],
           ["Top cat.", articles[0]?.category ?? "—", DL.CORAL],
         ].map(([k, v, c], i) => (
           <div key={k} style={{

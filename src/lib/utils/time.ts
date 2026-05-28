@@ -5,12 +5,17 @@
 
 /**
  * Convert an ISO date string to a human-readable relative time.
- * Examples: "< 1h ago", "3h ago", "2d ago"
+ * Examples: "just now", "3m ago", "2h ago", "5d ago"
+ * Returns "" for missing or invalid input.
  */
 export function relativeTime(iso: string): string {
+  if (!iso) return "";
   const diff = Date.now() - new Date(iso).getTime();
+  if (!isFinite(diff) || diff < 0) return "";
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
   const h = Math.floor(diff / 3_600_000);
-  if (h < 1) return "< 1h ago";
   if (h < 24) return `${h}h ago`;
   return `${Math.floor(h / 24)}d ago`;
 }

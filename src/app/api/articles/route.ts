@@ -4,16 +4,18 @@ import { supabase } from "@/lib/supabase";
 export const revalidate = 0;
 
 // GET /api/articles?country=USA&limit=10&window=24h&categories=Conflict,Politics
+// GET /api/articles?city=Kyiv&country=UKR&window=24h   ← city-scoped query
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
   const country = searchParams.get("country");
+  const city    = searchParams.get("city");          // optional city filter
   const limit = Math.min(parseInt(searchParams.get("limit") ?? "30", 10), 50);
   const window = searchParams.get("window") ?? "24h";
   const categoriesParam = searchParams.get("categories");
   const filterCategories = categoriesParam ? categoriesParam.split(",").filter(Boolean) : [];
 
-  if (!country) {
-    return NextResponse.json({ error: "country param required" }, { status: 400 });
+  if (!country && !city) {
+    return NextResponse.json({ error: "country or city param required" }, { status: 400 });
   }
 
   const hoursMap: Record<string, number> = {
@@ -25,6 +27,8 @@ export async function GET(req: NextRequest) {
   // Query from article_locations so country_code and is_primary are direct column
   // filters — avoids the Supabase JS v2 dot-notation ambiguity on joined tables.
   // articles!inner enforces an INNER JOIN so only located articles are returned.
+  // City-scoped query: filter by city_name (and optionally country_code)
+  // Country-scoped query: filter by country_code + is_primary
   let query = supabase
     .from("article_locations")
     .select(`
@@ -33,10 +37,15 @@ export async function GET(req: NextRequest) {
         sources ( name, domain, credibility )
       )
     `)
-    .eq("country_code", country)
-    .eq("is_primary", true)
     .gte("articles.published_at", since)
     .limit(limit);
+
+  if (city) {
+    query = query.eq("city_name", city);
+    if (country) query = query.eq("country_code", country);
+  } else {
+    query = query.eq("country_code", country!).eq("is_primary", true);
+  }
 
   if (filterCategories.length > 0) {
     query = query.in("articles.category", filterCategories);
@@ -69,7 +78,17 @@ export async function GET(req: NextRequest) {
     return new Date(bRow.articles.published_at).getTime() - new Date(aRow.articles.published_at).getTime();
   });
 
-  const articles = sorted.map((row) => {
+  // Deduplicate: one article can appear via multiple article_locations rows
+  // (e.g. an article tagged to both Moscow and Saint Petersburg for the same country).
+  const seenIds = new Set<string>();
+  const deduped = sorted.filter((row) => {
+    const id = (row as unknown as LocationRow).articles.id;
+    if (seenIds.has(id)) return false;
+    seenIds.add(id);
+    return true;
+  });
+
+  const articles = deduped.map((row) => {
     const r  = row as unknown as LocationRow;
     const a  = r.articles;
     return {

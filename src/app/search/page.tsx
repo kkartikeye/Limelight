@@ -6,9 +6,10 @@ import Link from "next/link";
 import useSWR from "swr";
 import Header from "@/components/ui/header";
 import BottomTabBar from "@/components/ui/bottom-tab-bar";
+import BackPill from "@/components/ui/back-pill";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DL } from "@/lib/design-tokens";
-import { relativeTime } from "@/lib/utils/time";
+import { useRelativeTime } from "@/lib/hooks/use-relative-time";
 import { countryName } from "@/lib/utils/countries";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -40,6 +41,7 @@ const fetcher = (url: string) => fetch(url).then((r) => r.json());
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function SearchResultRow({ result }: { result: SearchResult }) {
+  const timeAgo = useRelativeTime(result.publishedAt);
   const params = new URLSearchParams({
     h: result.headline,
     s: result.source,
@@ -82,7 +84,7 @@ function SearchResultRow({ result }: { result: SearchResult }) {
           <span>·</span>
           <span style={{ color: DL.CORAL, fontWeight: 600 }}>{result.category}</span>
           <span style={{ marginLeft: "auto", fontFamily: DL.MONO, fontSize: 10 }}>
-            {relativeTime(result.publishedAt)}
+            {timeAgo}
           </span>
         </div>
       </div>
@@ -413,6 +415,8 @@ export default function SearchPage() {
       }>
         <SearchContent />
       </Suspense>
+
+      <BackPill href="/" label="Globe" />
 
       <div className="bottom-tab-wrapper">
         <BottomTabBar active="Today" />

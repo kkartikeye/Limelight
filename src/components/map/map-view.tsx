@@ -4,20 +4,18 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import HeatLayer from "./heat-layer";
 import PinLayer from "./pin-layer";
+import CityHeatLayer from "./city-heat-layer";
+import ArcLayer from "./arc-layer";
 import Tooltip from "./tooltip";
 import MapLoader from "@/components/ui/map-loader";
 import { useMapStore } from "@/lib/stores/map-store";
 import { useWatchlistStore } from "@/lib/stores/watchlist-store";
 import { useScores } from "@/lib/hooks/use-scores";
 import { usePins } from "@/lib/hooks/use-pins";
+import { useCityScores } from "@/lib/hooks/use-city-scores";
+import { useArcs } from "@/lib/hooks/use-arcs";
 import { DL } from "@/lib/design-tokens";
 import type { TopCategory } from "@/lib/types/scores";
-
-const INITIAL_VIEW_STATE = {
-  longitude: 10,
-  latitude: 20,
-  zoom: 1.5,
-};
 
 // ─── Daylight globe fog — paper-globe metaphor ─────────────────────────────
 const FOG_DAYLIGHT: Parameters<mapboxgl.Map["setFog"]>[0] = {
@@ -71,6 +69,8 @@ export default function MapView({ onSelectCountry }: MapViewProps) {
 
   const { scores, isLoading } = useScores();
   const { pinsGeoJson } = usePins();
+  const { cityGeoJson } = useCityScores();
+  const { arcsGeoJson } = useArcs();
 
   const scoresRef = useRef(scores);
   scoresRef.current = scores;
@@ -85,24 +85,32 @@ export default function MapView({ onSelectCountry }: MapViewProps) {
 
     mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
 
+    // Restore the camera position the user left the globe at (in-memory, per session)
+    const { viewState: saved, setViewState } = useMapStore.getState();
+
     const map = new mapboxgl.Map({
       container: containerRef.current,
       // Daylight basemap: paper-cream background
       style: "mapbox://styles/mapbox/light-v11",
-      center: [INITIAL_VIEW_STATE.longitude, INITIAL_VIEW_STATE.latitude],
-      zoom:   INITIAL_VIEW_STATE.zoom,
+      center: [saved.longitude, saved.latitude],
+      zoom:   saved.zoom,
       scrollZoom: false,
     });
 
     mapRef.current = map;
+
+    // Persist camera position so returning to "/" restores the last view
+    map.on("moveend", () => {
+      const c = map.getCenter();
+      setViewState({ longitude: c.lng, latitude: c.lat, zoom: map.getZoom() });
+    });
 
     map.on("load", () => {
       setMapLoaded(true);
       setContainerWidth(containerRef.current?.offsetWidth ?? 0);
 
       // Globe projection + Daylight fog (always globe for now)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      map.setProjection({ name: "globe" } as any);
+      map.setProjection({ name: "globe" });
       map.setFog(FOG_DAYLIGHT);
 
       // ── Hover ────────────────────────────────────────────────────────────
@@ -214,6 +222,10 @@ export default function MapView({ onSelectCountry }: MapViewProps) {
             selectedIso={selectedCountry}
             watchedIsos={watchedIsos}
           />
+          {/* Arc layer sits between heat fill and city circles */}
+          <ArcLayer map={mapRef.current} arcsGeoJson={arcsGeoJson} />
+          {/* City heat circles + admin-1 subdivision outlines */}
+          <CityHeatLayer map={mapRef.current} cityGeoJson={cityGeoJson} />
           <PinLayer map={mapRef.current} pinsGeoJson={pinsGeoJson} />
         </>
       )}

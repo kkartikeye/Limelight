@@ -2,9 +2,18 @@ import { describe, it, expect } from "vitest";
 import { relativeTime, relativeTimeSince } from "./time";
 
 describe("relativeTime", () => {
-  it("returns '< 1h ago' for a timestamp less than 1 hour old", () => {
-    const iso = new Date(Date.now() - 30 * 60 * 1000).toISOString(); // 30 min ago
-    expect(relativeTime(iso)).toBe("< 1h ago");
+  it("returns '' for an empty string", () => {
+    expect(relativeTime("")).toBe("");
+  });
+
+  it("returns 'just now' for a timestamp less than 1 minute old", () => {
+    const iso = new Date(Date.now() - 30 * 1000).toISOString(); // 30 sec ago
+    expect(relativeTime(iso)).toBe("just now");
+  });
+
+  it("returns '30m ago' for a timestamp 30 minutes old", () => {
+    const iso = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    expect(relativeTime(iso)).toBe("30m ago");
   });
 
   it("returns '1h ago' for a timestamp exactly 1 hour old", () => {

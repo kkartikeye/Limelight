@@ -5,9 +5,9 @@ export const revalidate = 0;
 
 export async function GET(
   _req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
-  const { id } = await params;
+  const { id } = params;
 
   const { data, error } = await supabase
     .from("articles")

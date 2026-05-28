@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Header from "@/components/ui/header";
 import BottomTabBar from "@/components/ui/bottom-tab-bar";
+import BackPill from "@/components/ui/back-pill";
+import { useRelativeTime } from "@/lib/hooks/use-relative-time";
 import { DL } from "@/lib/design-tokens";
-import { relativeTime } from "@/lib/utils/time";
 import { countryName } from "@/lib/utils/countries";
 import { useReads } from "@/lib/hooks/use-reads";
 
@@ -32,10 +33,6 @@ interface PageProps {
     h?: string; s?: string; u?: string;
     c?: string; t?: string; cc?: string;
   };
-}
-
-function readingTime(): string {
-  return "~3 min read";
 }
 
 export default function ArticlePage({ params, searchParams }: PageProps) {
@@ -92,6 +89,7 @@ export default function ArticlePage({ params, searchParams }: PageProps) {
   }, [id, fbH, fbS, fbU, fbC, fbT, fbCC]);
 
   const displayCountry = article?.countryCode ? countryName(article.countryCode) : null;
+  const timeAgo = useRelativeTime(article?.publishedAt ?? "");
 
   return (
     <div className="route-fade article-page" style={{ display: "flex", flexDirection: "column", height: "100vh", background: DL.PAPER, overflow: "hidden", fontFamily: DL.SANS }}>
@@ -204,7 +202,7 @@ export default function ArticlePage({ params, searchParams }: PageProps) {
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: DL.INK }}>{article.source}</div>
                   <div style={{ fontSize: 11, color: DL.DIM, fontFamily: DL.MONO, letterSpacing: 0.06 }}>
-                    {relativeTime(article.publishedAt)} · {readingTime()}
+                    {timeAgo}
                   </div>
                 </div>
                 <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
@@ -226,7 +224,7 @@ export default function ArticlePage({ params, searchParams }: PageProps) {
                 </p>
                 <p style={{ margin: "0 0 18px" }}>
                   The coverage is filed under <strong style={{ color: DL.INK }}>{article.category}</strong> and was
-                  published {relativeTime(article.publishedAt)}.
+                  published {timeAgo}.
                 </p>
                 {article.url && article.url !== "#" && (
                   <a
@@ -343,6 +341,16 @@ export default function ArticlePage({ params, searchParams }: PageProps) {
           )}
         </div>
       </div>
+
+      {/* Mobile: floating back pill */}
+      <BackPill
+        href={
+          article?.countryCode
+            ? `/country/${article.countryCode}?name=${encodeURIComponent(countryName(article.countryCode))}`
+            : "/"
+        }
+        label={displayCountry ?? "Back"}
+      />
 
       <div className="bottom-tab-wrapper">
         <BottomTabBar active="Today" />

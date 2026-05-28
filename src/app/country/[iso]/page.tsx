@@ -4,13 +4,14 @@ import { useMemo, useCallback } from "react";
 import Link from "next/link";
 import Header from "@/components/ui/header";
 import BottomTabBar from "@/components/ui/bottom-tab-bar";
+import BackPill from "@/components/ui/back-pill";
 import { useScores } from "@/lib/hooks/use-scores";
 import { useArticles } from "@/lib/hooks/use-articles";
 import { useWatchlistStore } from "@/lib/stores/watchlist-store";
 import { useUser } from "@/lib/hooks/use-user";
+import { useRelativeTime } from "@/lib/hooks/use-relative-time";
 import { DL } from "@/lib/design-tokens";
 import { ALL_CATEGORIES } from "@/lib/stores/map-store";
-import { relativeTime } from "@/lib/utils/time";
 import { countryName as isoToName } from "@/lib/utils/countries";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Article } from "@/lib/types/article";
@@ -21,6 +22,7 @@ interface PageProps {
 }
 
 function ArticleRow({ article, summary }: { article: Article; summary?: string }) {
+  const timeAgo = useRelativeTime(article.publishedAt);
   return (
     <div style={{ padding: "10px 0", borderTop: `1px solid ${DL.RULE_2}` }}>
       <a
@@ -45,7 +47,7 @@ function ArticleRow({ article, summary }: { article: Article; summary?: string }
       <div style={{ marginTop: 5, fontSize: 11, color: DL.DIM, display: "flex", gap: 8, fontFamily: DL.SANS }}>
         <span style={{ color: DL.INK_2, fontWeight: 600 }}>{article.source}</span>
         <span>·</span>
-        <span>{relativeTime(article.publishedAt)}</span>
+        <span>{timeAgo}</span>
       </div>
     </div>
   );
@@ -90,6 +92,15 @@ export default function CountryPage({ params, searchParams }: PageProps) {
   }, [articles]);
 
   const heroArticle = articles[0];
+
+  // Live-updating time for the hero story timestamp
+  const heroTime = useRelativeTime(heroArticle?.publishedAt ?? "");
+
+  // Memoize source count to avoid recalculating on every render
+  const sourceCount = useMemo(
+    () => new Set(articles.map((a) => a.source)).size,
+    [articles]
+  );
 
   return (
     <div className="route-fade country-page" style={{ display: "flex", flexDirection: "column", height: "100vh", background: DL.PAPER, overflow: "hidden", fontFamily: DL.SANS }}>
@@ -146,7 +157,7 @@ export default function CountryPage({ params, searchParams }: PageProps) {
           }}>
             {[
               ["Intensity",  score.toString(),               DL.CORAL,  "coverage score"],
-              ["Articles",   articles.length.toString(),     DL.INK,    `across ${new Set(articles.map((a) => a.source)).size} outlets`],
+              ["Articles",   articles.length.toString(),     DL.INK,    `across ${sourceCount} outlets`],
               ["Top cat.",   articles[0]?.category ?? "—",  DL.CORAL,  "most reported"],
               ["Rank",       scoreEntry ? "#—" : "—",        DL.INK,    "globally today"],
             ].map(([k, v, c, sub], i) => (
@@ -171,7 +182,7 @@ export default function CountryPage({ params, searchParams }: PageProps) {
                 textTransform: "uppercase", color: DL.CORAL, marginBottom: 10,
               }}>
                 <span style={{ width: 6, height: 6, borderRadius: 999, background: DL.CORAL, display: "inline-block" }} />
-                Top story · {relativeTime(heroArticle.publishedAt)}
+                Top story · {heroTime}
               </div>
               <a
                 href={heroArticle.url}
@@ -266,6 +277,9 @@ export default function CountryPage({ params, searchParams }: PageProps) {
           </div>
         </div>
       </div>
+
+      {/* Mobile: floating back-to-globe pill */}
+      <BackPill href="/" label="Globe" />
 
       <div className="bottom-tab-wrapper">
         <BottomTabBar active="Today" />

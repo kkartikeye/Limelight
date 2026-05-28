@@ -108,7 +108,7 @@ export default function Home() {
             </div>
 
             {/* ── Bottom strip: filter bar ──────────────────────────────────── */}
-            <div style={{
+            <div className="filter-bar-container" style={{
               position: "absolute",
               left: 0, right: 0, bottom: 16,
               display: "flex", alignItems: "flex-end",

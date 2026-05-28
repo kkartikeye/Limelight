@@ -30,6 +30,14 @@ interface Filters {
   categories: Category[];
 }
 
+export interface ViewState {
+  longitude: number;
+  latitude: number;
+  zoom: number;
+}
+
+const DEFAULT_VIEW_STATE: ViewState = { longitude: 10, latitude: 20, zoom: 1.5 };
+
 interface MapState {
   // Selection
   selectedCountry: string | null;
@@ -43,12 +51,16 @@ interface MapState {
   // Projection (persisted to localStorage via mapEffect in MapView)
   projection: Projection;
 
+  // Globe camera position — persisted in memory so returning to "/" restores the last view
+  viewState: ViewState;
+
   // Actions
   selectCountry: (code: string, name: string, score: number) => void;
   clearSelection: () => void;
   setTimeWindow: (tw: TimeWindow) => void;
   toggleCategory: (cat: Category) => void;
   setProjection: (p: Projection) => void;
+  setViewState: (vs: ViewState) => void;
 }
 
 export const useMapStore = create<MapState>()((set) => ({
@@ -63,6 +75,8 @@ export const useMapStore = create<MapState>()((set) => ({
   },
 
   projection: "globe",
+
+  viewState: DEFAULT_VIEW_STATE,
 
   selectCountry: (code, name, score) =>
     set({ selectedCountry: code, selectedCountryName: name, selectedCountryScore: score, isPanelOpen: true }),
@@ -83,4 +97,6 @@ export const useMapStore = create<MapState>()((set) => ({
     }),
 
   setProjection: (p) => set({ projection: p }),
+
+  setViewState: (vs) => set({ viewState: vs }),
 }));

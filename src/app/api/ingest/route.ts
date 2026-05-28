@@ -342,6 +342,40 @@ function extractCountry(title: string, domain?: string): GeoResult | null {
   return null;
 }
 
+// Extract ALL country / city mentions from a title (for secondary locations / cross-border arcs).
+// Returns an ordered list: first entry is the primary (most specific), rest are secondary.
+function extractAllLocations(title: string, domain?: string): GeoResult[] {
+  const results: GeoResult[] = [];
+  const seenIsos = new Set<string>();
+
+  // City matches (high confidence, includes coordinates)
+  for (const [pattern, city] of CITY_COORDS) {
+    if (pattern.test(title) && !seenIsos.has(city.iso3)) {
+      results.push({ iso3: city.iso3, confidence: 0.9, cityName: city.city, lat: city.lat, lng: city.lng });
+      seenIsos.add(city.iso3);
+    }
+  }
+
+  // Country name matches (medium confidence)
+  for (const [pattern, iso3] of COUNTRY_NAME_MAP) {
+    if (pattern.test(title) && !seenIsos.has(iso3)) {
+      results.push({ iso3, confidence: 0.85 });
+      seenIsos.add(iso3);
+    }
+  }
+
+  // Domain fallback adds a secondary location only if nothing else matched
+  if (results.length === 0 && domain) {
+    const parentDomain = domain.split(".").slice(-2).join(".");
+    const iso3 = DOMAIN_COUNTRY[domain] ?? DOMAIN_COUNTRY[parentDomain];
+    if (iso3 && !seenIsos.has(iso3)) {
+      results.push({ iso3, confidence: 0.4 });
+    }
+  }
+
+  return results;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function seendateToISO(s: string): string {
   const d = s.replace(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/, "$1-$2-$3T$4:$5:$6Z");
@@ -469,18 +503,20 @@ async function ingestArticles(
   for (const inserted of insertedArticles ?? []) {
     const orig = thashToArticle.get(inserted.external_id as string);
     if (!orig) continue;
-    const geo = extractCountry(orig.title, orig.domain);
-    if (geo) {
+
+    // Extract primary + all secondary locations for cross-border arc support
+    const allGeos = extractAllLocations(orig.title, orig.domain);
+    allGeos.forEach((geo, idx) => {
       locationRows.push({
         article_id: inserted.id as string,
         country_code: geo.iso3,
-        is_primary: true,
+        is_primary: idx === 0,   // first match is primary, rest are secondary
         confidence: geo.confidence,
         ...(geo.cityName && { city_name: geo.cityName }),
         ...(geo.lat != null && { latitude: geo.lat }),
         ...(geo.lng != null && { longitude: geo.lng }),
       });
-    }
+    });
   }
 
   if (locationRows.length) {

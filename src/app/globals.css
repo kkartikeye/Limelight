@@ -126,17 +126,43 @@ body {
   .topics-grid { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
 
   /* ── Regions page (/regions) ───────────────────────────────────────────── */
-  .regions-h1 { font-size: 48px !important; letter-spacing: -2px !important; }
+  .regions-h1   { font-size: 48px !important; letter-spacing: -2px !important; }
+  .regions-body { padding: 24px 20px 90px !important; }
+  .regions-grid { grid-template-columns: 1fr !important; }
 
   /* ── Search page (/search) ─────────────────────────────────────────────── */
   .search-bar     { padding: 14px 20px 0 !important; }
   .search-results { padding: 16px 20px 90px !important; }
 }
 
-/* Bottom tab bar — always hidden on desktop, shown on mobile */
+/* Bottom tab bar — always hidden on desktop, fixed to viewport bottom on mobile */
 .bottom-tab-wrapper { display: none; }
 @media (max-width: 767px) {
-  .bottom-tab-wrapper { display: block; }
+  .bottom-tab-wrapper {
+    display: block;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+  }
+}
+
+/* Filter bar container — on mobile, sits above the fixed tab bar */
+@media (max-width: 767px) {
+  .filter-bar-container { bottom: 72px !important; }
+}
+
+/* Floating back-to-map pill — visible only on mobile, fixed above the tab bar */
+.mobile-back-pill { display: none; }
+@media (max-width: 767px) {
+  .mobile-back-pill {
+    display: block;
+    position: fixed;
+    bottom: 72px;
+    left: 16px;
+    z-index: 50;
+  }
 }
 
 /* Show mobile-only elements only on small screens */
