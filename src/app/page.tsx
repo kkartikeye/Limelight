@@ -90,7 +90,7 @@ export default function Home() {
                   letterSpacing: -1.3, lineHeight: 0.95, color: DL.INK,
                 }}
               >
-                The shape of <em>the day&apos;s</em> news.
+                Where the news is <em>loudest</em> right now.
               </div>
 
               {/* Subtitle */}
@@ -100,12 +100,14 @@ export default function Home() {
             </div>
 
             {/* ── Vertical intensity legend — right edge, mid-height ────────── */}
+            {/* pointerEvents enabled: hovering the legend opens the
+                "how it's measured" methodology card */}
             <div
               className="desktop-only"
               style={{
                 position: "absolute", right: 16, top: "50%",
                 transform: "translateY(-50%)",
-                pointerEvents: "none", zIndex: 10,
+                pointerEvents: "all", zIndex: 10,
               }}
             >
               <HeatLegend />
