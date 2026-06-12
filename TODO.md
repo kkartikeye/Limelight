@@ -7,11 +7,11 @@ file now tracks the few remaining open items and the historical phase record.
 
 ## 🔧 Open items
 
-### 1. Provision push alerts (one-time, manual)
-Run `docs/migration_phase9_push.sql` in the Supabase SQL editor, then add the
-three VAPID env vars from `.env.local` (`NEXT_PUBLIC_VAPID_PUBLIC_KEY`,
-`VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`) to Vercel. Until then the alerts UI on
-/saved returns a graceful 503 and ingestion skips dispatch.
+### 1. ~~Provision push alerts~~ — ✅ done 2026-06-12
+`push_subscriptions` table created in Supabase; VAPID env vars +
+`NEXT_PUBLIC_SITE_URL=https://limelight-blue.vercel.app` added to Vercel
+Production and redeployed. Verified live: `/api/push` validates payloads
+(no more 503), robots/sitemap/OG use the real domain.
 
 ### 2. Claude article summaries — blocked
 GDELT provides no article bodies and no `ANTHROPIC_API_KEY` is configured.
