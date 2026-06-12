@@ -122,13 +122,14 @@ Done — `SourceFavicon` component (DuckDuckGo favicon API via `<Image unoptimiz
 
 **Goal**: richer, more accurate coverage.
 
-| Feature | Description |
+| Feature | Status |
 |---|---|
-| **Multi-source ingestion** | Add MediaStack, NewsAPI, and The Guardian API alongside GDELT. Dedup by URL hash + title similarity (already specced). |
-| **NER geo-tagging** | Run spaCy + Mordecai3 on article bodies for precise city-level geo-tagging, replacing the coarse GDELT country codes. |
-| **Source credibility scoring** | Automate credibility scores using AllSides bias ratings + NewsGuard API. Currently hardcoded in the `sources` table. |
-| **Deduplication pipeline** | The BullMQ + Redis dedup queue from the architecture spec. Group reprints of the same AP/Reuters wire into a single canonical article with a reprint count. |
-| **Body summary extraction** | Store a 2-sentence AI-generated summary in `articles.body_summary` using Claude API. Surface in the article reader and search index. |
+| **Multi-source ingestion** | ✅ Guardian Content API ingested alongside GDELT (`src/lib/ingest/guardian.ts`; set `GUARDIAN_API_KEY` in prod — falls back to the public `test` key). MediaStack/NewsAPI deferred (paid keys). |
+| **Deduplication pipeline** | ✅ Fuzzy title dedup (token-set Jaccard ≥ 0.7) drops cross-source reprints in-batch and vs. the last 24 h (`src/lib/ingest/similarity.ts`). BullMQ/Redis queue not needed at current volume — revisit at >5k articles/day. |
+| **Source credibility scoring** | ✅ Curated ~80-domain registry (`src/lib/ingest/credibility.ts`) replaces the flat 0.5 for new sources; `POST /api/ingest?credibility=true` backfills existing rows. NewsGuard/AllSides APIs deferred (paid/no API). |
+| **Article snippets** | ✅ Guardian trailText stored in `articles.body_snippet`, served via `/api/articles` and shown on the country page. |
+| **Body summary extraction (Claude)** | Deferred — GDELT provides no article bodies to summarise and no `ANTHROPIC_API_KEY` is configured. Becomes viable once a body-providing source (NewsAPI/MediaStack) is added. |
+| **NER geo-tagging** | Deferred — needs a Python microservice (spaCy + Mordecai3) or per-article LLM calls; regex gazetteer in the ingest route covers ~190 countries + 100 cities meanwhile. |
 
 ### Phase 8 — Monetisation & Scale
 

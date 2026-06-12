@@ -14,6 +14,7 @@ interface ApiArticle {
   severity: number | null;
   source: string;
   domain: string;
+  summary: string | null;
   credibilityTier: "high" | "medium" | "low";
 }
 
@@ -23,6 +24,7 @@ function mapApiArticle(a: ApiArticle): Article {
     headline: a.headline,
     source: a.source,
     domain: a.domain,
+    summary: a.summary ?? undefined,
     credibilityTier: a.credibilityTier,
     category: (a.category as Article["category"]) ?? "Politics",
     publishedAt: a.publishedAt,

@@ -280,7 +280,7 @@ export default function CountryPage({ params, searchParams }: PageProps) {
                     <span style={{ flex: 1, height: 1, background: DL.RULE_2 }} />
                     <span style={{ fontFamily: DL.MONO, fontSize: 10, color: DL.DIM }}>{items.length}</span>
                   </div>
-                  {items.map((a) => <ArticleRow key={a.id} article={a} />)}
+                  {items.map((a) => <ArticleRow key={a.id} article={a} summary={a.summary} />)}
                 </div>
               ))
             ) : (

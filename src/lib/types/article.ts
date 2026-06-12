@@ -15,6 +15,8 @@ export interface Article {
   source: string;
   /** Outlet domain (e.g. "reuters.com") for favicon display; absent on mock data */
   domain?: string;
+  /** 1–2 sentence standfirst/snippet, when the source provides one */
+  summary?: string;
   credibilityTier: CredibilityTier;
   category: ArticleCategory;
   publishedAt: string; // ISO string

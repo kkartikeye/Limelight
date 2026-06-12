@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
     .from("article_locations")
     .select(`
       articles!inner (
-        id, title, url, published_at, category, severity,
+        id, title, url, published_at, category, severity, body_snippet,
         sources ( name, domain, credibility )
       )
     `)
@@ -64,6 +64,7 @@ export async function GET(req: NextRequest) {
     published_at: string;
     category: string | null;
     severity: number | null;
+    body_snippet: string | null;
     sources: { name: string; domain: string; credibility: number } | null;
   };
 
@@ -100,6 +101,7 @@ export async function GET(req: NextRequest) {
       severity: a.severity,
       source:   a.sources?.name ?? a.sources?.domain ?? "Unknown",
       domain:   a.sources?.domain ?? "",
+      summary:  a.body_snippet ?? null,
       credibilityTier:
         (a.sources?.credibility ?? 0) >= 0.85 ? "high" :
         (a.sources?.credibility ?? 0) >= 0.6  ? "medium" : "low",

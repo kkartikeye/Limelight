@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { createHash } from "crypto";
+import { fetchGuardian, type NormalisedArticle } from "@/lib/ingest/guardian";
+import { dedupeByTitle } from "@/lib/ingest/similarity";
+import { credibilityFor, registryEntries } from "@/lib/ingest/credibility";
 
 export const maxDuration = 60; // respected on Pro; Hobby is still capped at 10s
 
@@ -431,12 +434,12 @@ async function fetchGdelt(query: string, timespan = "2h", maxrecords = 50): Prom
 // All DB work is done in bulk queries (O(6) queries regardless of article count)
 // instead of the previous per-article loop (O(4n) queries).
 async function ingestArticles(
-  articles: GdeltArticle[],
-  results: { inserted: number; skipped: number; errors: string[] }
+  articles: NormalisedArticle[],
+  results: { inserted: number; skipped: number; reprints: number; errors: string[] }
 ) {
   if (!articles.length) return;
 
-  // 1. Bulk-check which titles already exist
+  // 1. Bulk-check which titles already exist (exact normalized-title hash)
   const thashes = articles.map((a) => titleHash(a.title));
   const { data: existingRows } = await supabase
     .from("articles")
@@ -444,8 +447,24 @@ async function ingestArticles(
     .in("external_id", thashes);
   const existingSet = new Set((existingRows ?? []).map((r) => r.external_id as string));
 
-  const newArticles = articles.filter((a) => !existingSet.has(titleHash(a.title)));
+  let newArticles = articles.filter((a) => !existingSet.has(titleHash(a.title)));
   results.skipped += articles.length - newArticles.length;
+  if (!newArticles.length) return;
+
+  // 1b. Fuzzy reprint detection: drop near-duplicate titles (cross-source
+  //     reprints of the same wire story) within the batch and against the
+  //     last 24 h of stored headlines.
+  const since24h = new Date(Date.now() - 24 * 3_600_000).toISOString();
+  const { data: recentRows } = await supabase
+    .from("articles")
+    .select("title")
+    .gte("published_at", since24h)
+    .limit(400);
+  const recentTitles = (recentRows ?? []).map((r) => r.title as string);
+
+  const keptIdx = dedupeByTitle(newArticles.map((a) => a.title), recentTitles);
+  results.reprints += newArticles.length - keptIdx.length;
+  newArticles = keptIdx.map((i) => newArticles[i]);
   if (!newArticles.length) return;
 
   // 2. Bulk-fetch existing sources, insert missing ones
@@ -462,7 +481,7 @@ async function ingestArticles(
   if (newDomains.length) {
     const { data: insertedSources } = await supabase
       .from("sources")
-      .insert(newDomains.map((d) => ({ name: d, domain: d, credibility: 0.5, source_type: "news" })))
+      .insert(newDomains.map((d) => ({ name: d, domain: d, credibility: credibilityFor(d), source_type: "news" })))
       .select("id, domain");
     (insertedSources ?? []).forEach((s) => sourceMap.set(s.domain as string, s.id as string));
   }
@@ -478,6 +497,7 @@ async function ingestArticles(
       source_id: sourceMap.get(a.domain) ?? null,
       category,
       severity: category === "Conflict" ? 4 : category === "Humanitarian" ? 3 : 2,
+      ...(a.snippet && { body_snippet: a.snippet }),
     };
   });
 
@@ -608,9 +628,19 @@ async function computeScores(results: { scored: number; errors: string[] }) {
 // Accepts optional gdeltQuery + timespan overrides for seeding / targeted runs.
 // Default: broad English news, last 2 h — fits Vercel Hobby's 10-second wall.
 async function runIngestion(gdeltQuery = "sourcelang:english", timespan = "2h"): Promise<NextResponse> {
-  const results = { fetched: 0, inserted: 0, skipped: 0, scored: 0, errors: [] as string[] };
+  const results = {
+    fetched: 0, fetchedBySource: {} as Record<string, number>,
+    inserted: 0, skipped: 0, reprints: 0, scored: 0, errors: [] as string[],
+  };
 
-  const articles = await fetchGdelt(gdeltQuery, timespan, 50);
+  // Fetch all sources in parallel — Guardian articles first so their richer
+  // records (trailText snippets) win when fuzzy dedup drops GDELT reprints.
+  const [guardian, gdelt] = await Promise.all([
+    fetchGuardian(GDELT_TIMEOUT_MS),
+    fetchGdelt(gdeltQuery, timespan, 50),
+  ]);
+  results.fetchedBySource = { guardian: guardian.length, gdelt: gdelt.length };
+  const articles: NormalisedArticle[] = [...guardian, ...gdelt];
   results.fetched = articles.length;
 
   if (articles.length > 0) {
@@ -619,6 +649,25 @@ async function runIngestion(gdeltQuery = "sourcelang:english", timespan = "2h"):
 
   await computeScores(results);
   return NextResponse.json(results);
+}
+
+// ─── Credibility backfill (POST /api/ingest?credibility=true) ────────────────
+// Re-scores existing sources from the curated registry (skips unknown domains
+// so manually-set values aren't clobbered with the 0.5 default).
+async function runCredibilityBackfill(): Promise<NextResponse> {
+  let updated = 0;
+  const errors: string[] = [];
+  for (const [domain, credibility] of registryEntries()) {
+    const { error, count } = await supabase
+      .from("sources")
+      .update({ credibility }, { count: "exact" })
+      .eq("domain", domain);
+    if (error) errors.push(`${domain}: ${error.message}`);
+    else updated += count ?? 0;
+  }
+  const scoreResults = { scored: 0, errors };
+  await computeScores(scoreResults);
+  return NextResponse.json({ updated, ...scoreResults });
 }
 
 // ─── One-time backfill (POST /api/ingest?backfill=true) ───────────────────────
@@ -678,6 +727,7 @@ export async function POST(req: NextRequest) {
   }
   const sp = new URL(req.url).searchParams;
   if (sp.get("backfill") === "true") return runBackfill();
+  if (sp.get("credibility") === "true") return runCredibilityBackfill();
   const query = sp.get("query") ?? "sourcelang:english";
   const timespan = sp.get("timespan") ?? "2h";
   return runIngestion(query, timespan);
