@@ -46,21 +46,6 @@ const BORDER_COLOR_EXPR: mapboxgl.Expression = [
   MapTokens.border.scored,
 ];
 
-// ─── Adaptive label colours (dark ink on light fills, light cream on dark) ───
-const LABEL_TEXT_COLOR: mapboxgl.Expression = [
-  "case",
-  ["==", ["coalesce", ["feature-state", "score"], 0], 0], "#3a2a1a",
-  ["<",  ["coalesce", ["feature-state", "score"], 0], 55], "#1a140a",
-  "#fffaef",
-];
-
-const LABEL_HALO_COLOR: mapboxgl.Expression = [
-  "case",
-  ["==", ["coalesce", ["feature-state", "score"], 0], 0], "rgba(246,243,236,0.90)",
-  ["<",  ["coalesce", ["feature-state", "score"], 0], 55], "rgba(255,255,255,0.75)",
-  "rgba(26,14,8,0.95)",
-];
-
 const ALL_LAYER_IDS = [
   "heat-selected-outline",
   "heat-selected-glow",
@@ -68,7 +53,6 @@ const ALL_LAYER_IDS = [
   "heat-hover-outline",
   "heat-outline",
   "heat-fill",
-  "heat-country-label",
 ];
 
 export default function HeatLayer({
@@ -171,36 +155,14 @@ export default function HeatLayer({
       },
     }, beforeLabel);
 
-    // 7. Custom country labels with adaptive feature-state colours
-    //    Uses DIN Offc Pro Medium (built into Mapbox's font service).
-    map.addLayer({
-      id: "heat-country-label",
-      type: "symbol",
-      source: SOURCE_ID,
-      "source-layer": SOURCE_LAYER,
-      filter: POLYGON_FILTER,
-      layout: {
-        "text-field":          ["get", "name_en"],
-        "text-font":           ["DIN Offc Pro Medium", "Arial Unicode MS Regular"],
-        "text-size":           ["interpolate", ["linear"], ["zoom"], 1, 8, 3, 10, 5, 12, 7, 13],
-        "text-letter-spacing": 0.04,
-        "text-max-width":      7,
-        "text-padding":        2,
-        "text-anchor":         "center",
-        "text-allow-overlap":  false,
-      },
-      paint: {
-        "text-color":      LABEL_TEXT_COLOR,
-        "text-halo-color": LABEL_HALO_COLOR,
-        "text-halo-width": 1.4,
-        "text-halo-blur":  0.3,
-        "text-opacity": ["interpolate", ["linear"], ["zoom"], 1, 0, 2.5, 1],
-      },
-    });
-
-    // Suppress basemap country labels to avoid duplication
+    // 7. Country labels: restyle the basemap's own `country-label` layer.
+    //    It places one label per country with proper collision/priority rules
+    //    (a custom symbol layer on the boundaries source labels every polygon
+    //    feature — every island gets its own callout).
     if (map.getLayer("country-label")) {
-      map.setLayoutProperty("country-label", "visibility", "none");
+      map.setPaintProperty("country-label", "text-color", "#3a2a1a");
+      map.setPaintProperty("country-label", "text-halo-color", "rgba(246,243,236,0.85)");
+      map.setPaintProperty("country-label", "text-halo-width", 1.2);
     }
 
     // Apply feature-states whenever tiles arrive
@@ -228,9 +190,6 @@ export default function HeatLayer({
           if (map.getLayer(id)) map.removeLayer(id);
         }
         if (map.getSource(SOURCE_ID)) map.removeSource(SOURCE_ID);
-        if (map.getLayer("country-label")) {
-          map.setLayoutProperty("country-label", "visibility", "visible");
-        }
       } catch { /* map torn down (HMR) */ }
     };
   }, [map]);
