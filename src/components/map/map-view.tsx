@@ -242,7 +242,7 @@ export default function MapView({ onSelectCountry }: MapViewProps) {
           {/* Arc layer sits between heat fill and city circles */}
           <ArcLayer map={mapRef.current} arcsGeoJson={arcsGeoJson} />
           {/* City heat circles + admin-1 subdivision outlines */}
-          <CityHeatLayer map={mapRef.current} cityGeoJson={cityGeoJson} />
+          <CityHeatLayer map={mapRef.current} cityGeoJson={cityGeoJson} dark={dark} />
           <PinLayer map={mapRef.current} pinsGeoJson={pinsGeoJson} />
         </>
       )}

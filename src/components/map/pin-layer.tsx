@@ -133,26 +133,26 @@ export default function PinLayer({ map, pinsGeoJson }: PinLayerProps) {
           <div style="font-family:'Manrope','IBM Plex Sans',system-ui,sans-serif;">
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:9px;">
               <span style="
-                background:#fff0ea;color:#e0573c;border:1px solid #fac7b8;
+                background:var(--dl-coral-50);color:var(--dl-coral);border:1px solid var(--dl-coral-bd);
                 font-family:'IBM Plex Mono',monospace;
                 font-size:9px;font-weight:700;
                 padding:2px 7px;border-radius:99px;letter-spacing:0.06em;
                 text-transform:uppercase;
               ">${props.category}</span>
               <span style="
-                color:#7a7568;font-size:10px;
+                color:var(--dl-dim);font-size:10px;
                 font-family:'IBM Plex Mono',monospace;
                 letter-spacing:0.04em;
               ">${location} · ${published}</span>
             </div>
             <p style="
               margin:0 0 11px;font-size:13px;font-weight:500;
-              line-height:1.40;color:#181613;
+              line-height:1.40;color:var(--dl-ink);
             ">${props.title}</p>
             <a href="${props.url}" target="_blank" rel="noopener noreferrer"
               style="
                 display:inline-flex;align-items:center;gap:4px;
-                font-size:11px;color:#e0573c;
+                font-size:11px;color:var(--dl-coral);
                 text-decoration:none;font-weight:600;
                 letter-spacing:0.01em;
               ">

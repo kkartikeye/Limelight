@@ -63,7 +63,7 @@ export default function BottomTabBar({ active }: BottomTabBarProps) {
       display: "flex",
       alignItems: "stretch",
       borderTop: `1px solid ${DL.RULE}`,
-      background: "rgba(246,243,236,0.92)",
+      background: DL.GLASS,
       backdropFilter: "blur(16px)",
       WebkitBackdropFilter: "blur(16px)",
       paddingBottom: "env(safe-area-inset-bottom, 0px)",

@@ -132,9 +132,9 @@ function RegionCard({ name, code, desc, isos, scores, isLoading }: RegionCardPro
         {topScore > 0 && (
           <span style={{
             padding: "3px 9px", borderRadius: 999, fontSize: 11, fontWeight: 600,
-            background: topScore >= 60 ? DL.CORAL_50 : "#f0ede7",
+            background: topScore >= 60 ? DL.CORAL_50 : DL.CHIP,
             color: topScore >= 60 ? DL.CORAL : DL.DIM,
-            border: `1px solid ${topScore >= 60 ? DL.CORAL_BD : "rgba(24,22,19,0.10)"}`,
+            border: `1px solid ${topScore >= 60 ? DL.CORAL_BD : DL.RULE_2}`,
             fontFamily: DL.SANS, flexShrink: 0, marginTop: 2,
           }}>
             {topScore}

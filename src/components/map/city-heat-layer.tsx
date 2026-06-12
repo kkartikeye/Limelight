@@ -31,9 +31,11 @@ const LAYER_IDS = ["admin-1-subdivisions", "city-heat-circles", "city-heat-label
 interface CityHeatLayerProps {
   map: mapboxgl.Map;
   cityGeoJson: CityScoreGeoJson | null;
+  /** Midnight theme — basemap is dark-v11, so flip border/stroke/label colors */
+  dark?: boolean;
 }
 
-export default function CityHeatLayer({ map, cityGeoJson }: CityHeatLayerProps) {
+export default function CityHeatLayer({ map, cityGeoJson, dark = false }: CityHeatLayerProps) {
   const router = useRouter();
   const routerRef = useRef(router);
   routerRef.current = router;
@@ -60,7 +62,7 @@ export default function CityHeatLayer({ map, cityGeoJson }: CityHeatLayerProps) 
             ["!=", ["get", "maritime"], 1],
           ],
           paint: {
-            "line-color": "rgba(24,22,19,0.13)",
+            "line-color": dark ? "rgba(241,236,224,0.13)" : "rgba(24,22,19,0.13)",
             "line-width": [
               "interpolate", ["linear"], ["zoom"],
               3, 0.4,
@@ -98,7 +100,7 @@ export default function CityHeatLayer({ map, cityGeoJson }: CityHeatLayerProps) 
         "circle-radius":         CITY_RADIUS,
         "circle-opacity":        ["interpolate", ["linear"], ["zoom"], 3.5, 0, 4.5, 0.82],
         "circle-stroke-width":   1.5,
-        "circle-stroke-color":   "rgba(246,243,236,0.88)",
+        "circle-stroke-color":   dark ? "rgba(22,20,15,0.88)" : "rgba(246,243,236,0.88)",
         "circle-stroke-opacity": ["interpolate", ["linear"], ["zoom"], 3.5, 0, 4.5, 1],
         "circle-blur":           0.1,
       },
@@ -120,8 +122,8 @@ export default function CityHeatLayer({ map, cityGeoJson }: CityHeatLayerProps) 
         "symbol-sort-key":     ["-", 100, ["get", "score"]],
       },
       paint: {
-        "text-color":      "#181613",
-        "text-halo-color": "rgba(246,243,236,0.92)",
+        "text-color":      dark ? "#e8e2d4" : "#181613",
+        "text-halo-color": dark ? "rgba(22,20,15,0.92)" : "rgba(246,243,236,0.92)",
         "text-halo-width": 1.2,
         "text-opacity":    ["interpolate", ["linear"], ["zoom"], 5.5, 0, 6.5, 1],
       },
@@ -147,15 +149,15 @@ export default function CityHeatLayer({ map, cityGeoJson }: CityHeatLayerProps) 
           <div style="font-family:'Manrope','IBM Plex Sans',system-ui,sans-serif;">
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
               <span style="
-                background:#fff0ea;color:#e0573c;border:1px solid #fac7b8;
+                background:var(--dl-coral-50);color:var(--dl-coral);border:1px solid var(--dl-coral-bd);
                 font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:700;
                 padding:2px 7px;border-radius:99px;letter-spacing:0.06em;text-transform:uppercase;
               ">${props.topCategory}</span>
             </div>
-            <p style="margin:0 0 4px;font-size:14px;font-weight:700;line-height:1.2;color:#181613;">
+            <p style="margin:0 0 4px;font-size:14px;font-weight:700;line-height:1.2;color:var(--dl-ink);">
               ${props.city}
             </p>
-            <p style="margin:0;font-size:11px;color:#7a7568;font-family:'IBM Plex Mono',monospace;">
+            <p style="margin:0;font-size:11px;color:var(--dl-dim);font-family:'IBM Plex Mono',monospace;">
               ${props.count} article${props.count !== 1 ? "s" : ""} · intensity ${props.score}
             </p>
           </div>
@@ -195,8 +197,9 @@ export default function CityHeatLayer({ map, cityGeoJson }: CityHeatLayerProps) 
         if (map.getSource("city-heat")) map.removeSource("city-heat");
       } catch { /* map already torn down */ }
     };
+    // `dark` is stable per map instance — MapView remounts on theme change
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map]);
+  }, [map, dark]);
 
   // ── Push fresh city data whenever it changes ─────────────────────────────────
   useEffect(() => {

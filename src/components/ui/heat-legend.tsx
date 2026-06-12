@@ -12,12 +12,12 @@ export default function HeatLegend() {
       flexDirection: "row",
       alignItems: "stretch",
       gap: 6,
-      background: "rgba(246,243,236,0.88)",
+      background: DL.GLASS,
       backdropFilter: "blur(10px)",
       WebkitBackdropFilter: "blur(10px)",
       borderRadius: 10,
       padding: "10px 10px",
-      border: `1px solid rgba(24,22,19,0.08)`,
+      border: `1px solid ${DL.RULE}`,
     }}>
       {/* Gradient bar */}
       <div style={{
@@ -25,7 +25,7 @@ export default function HeatLegend() {
         height: 110,
         borderRadius: 999,
         background: gradient,
-        border: `1px solid rgba(24,22,19,0.10)`,
+        border: `1px solid ${DL.RULE_2}`,
         flexShrink: 0,
       }} />
 
