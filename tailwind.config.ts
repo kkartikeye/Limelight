@@ -17,17 +17,17 @@ const config: Config = {
 
       // ── Daylight color palette ─────────────────────────────────────────────
       colors: {
-        paper:      "#f6f3ec",
-        "paper-2":  "#efeadf",
-        card:       "#ffffff",
-        ink:        "#181613",
-        "ink-2":    "#3a3025",
-        dim:        "#7a7568",
-        "dim-2":    "#aaa492",
-        coral:      "#e0573c",
-        "coral-50": "#fff0ea",
-        "coral-bd": "#fac7b8",
-        live:       "#2a8a5e",
+        paper:      "var(--dl-paper)",
+        "paper-2":  "var(--dl-paper-2)",
+        card:       "var(--dl-card)",
+        ink:        "var(--dl-ink)",
+        "ink-2":    "var(--dl-ink-2)",
+        dim:        "var(--dl-dim)",
+        "dim-2":    "var(--dl-dim-2)",
+        coral:      "var(--dl-coral)",
+        "coral-50": "var(--dl-coral-50)",
+        "coral-bd": "var(--dl-coral-bd)",
+        live:       "var(--dl-live)",
       },
 
       // ── Box shadows ────────────────────────────────────────────────────────
