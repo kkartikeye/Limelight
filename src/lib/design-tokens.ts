@@ -41,6 +41,9 @@ export const DL = {
   // Neutral chip background (low-intensity pills)
   CHIP:     "var(--dl-chip)",
 
+  // Frosted-glass surface (hover tooltip, overlays)
+  GLASS:    "var(--dl-glass)",
+
   // Live indicator
   LIVE:     "var(--dl-live)",
 

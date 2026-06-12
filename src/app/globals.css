@@ -21,6 +21,7 @@
   --dl-coral-bd: #fac7b8;
   --dl-live:     #2a8a5e;
   --dl-chip:     #f0ede7;
+  --dl-glass:    rgba(255,255,255,0.94);
 
   --background: var(--dl-paper);
   --foreground: var(--dl-ink);
@@ -41,6 +42,7 @@
   --dl-coral-bd: #6a3424;
   --dl-live:     #43b27c;
   --dl-chip:     #2a261e;
+  --dl-glass:    rgba(34,31,24,0.94);
 }
 
 html {

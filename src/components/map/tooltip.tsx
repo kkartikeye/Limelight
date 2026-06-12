@@ -43,7 +43,7 @@ export default function Tooltip({
     >
       <div
         style={{
-          background: "rgba(255,255,255,0.94)",
+          background: DL.GLASS,
           backdropFilter: "blur(12px)",
           WebkitBackdropFilter: "blur(12px)",
           borderRadius: 14,
@@ -64,7 +64,7 @@ export default function Tooltip({
 
         {/* Score bar */}
         <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ flex: 1, height: 4, background: "#f0e8d8", borderRadius: 999 }}>
+          <div style={{ flex: 1, height: 4, background: DL.CHIP, borderRadius: 999 }}>
             <div style={{
               width: `${Math.max(4, score)}%`,
               height: "100%",

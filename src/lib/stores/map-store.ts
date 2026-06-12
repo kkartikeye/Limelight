@@ -23,8 +23,6 @@ export const ALL_CATEGORIES: Category[] = [
   "Entertainment",
 ];
 
-export type Projection = "globe" | "naturalEarth";
-
 interface Filters {
   timeWindow: TimeWindow;
   categories: Category[];
@@ -48,9 +46,6 @@ interface MapState {
   // Filters
   filters: Filters;
 
-  // Projection (persisted to localStorage via mapEffect in MapView)
-  projection: Projection;
-
   // Globe camera position — persisted in memory so returning to "/" restores the last view
   viewState: ViewState;
 
@@ -59,7 +54,8 @@ interface MapState {
   clearSelection: () => void;
   setTimeWindow: (tw: TimeWindow) => void;
   toggleCategory: (cat: Category) => void;
-  setProjection: (p: Projection) => void;
+  resetCategories: () => void;
+  setCategories: (cats: Category[]) => void;
   setViewState: (vs: ViewState) => void;
 }
 
@@ -74,7 +70,6 @@ export const useMapStore = create<MapState>()((set) => ({
     categories: [...ALL_CATEGORIES],
   },
 
-  projection: "globe",
 
   viewState: DEFAULT_VIEW_STATE,
 
@@ -96,7 +91,11 @@ export const useMapStore = create<MapState>()((set) => ({
       return { filters: { ...s.filters, categories: next } };
     }),
 
-  setProjection: (p) => set({ projection: p }),
+  resetCategories: () =>
+    set((s) => ({ filters: { ...s.filters, categories: [...ALL_CATEGORIES] } })),
+
+  setCategories: (cats) =>
+    set((s) => ({ filters: { ...s.filters, categories: cats } })),
 
   setViewState: (vs) => set({ viewState: vs }),
 }));

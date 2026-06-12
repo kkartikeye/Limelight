@@ -1,5 +1,11 @@
 "use client";
 
+// ─── Filter bar ───────────────────────────────────────────────────────────────
+// Time-window pills + a Topics popover + live status. Categories moved out of
+// the bar into an upward popover so every topic keeps its full name (no
+// "Hum."/"Eco." shorthand) without crowding the strip.
+
+import { useEffect, useRef, useState } from "react";
 import { useMapStore, ALL_CATEGORIES } from "@/lib/stores/map-store";
 import type { TimeWindow, Category } from "@/lib/stores/map-store";
 import { DL } from "@/lib/design-tokens";
@@ -16,6 +22,118 @@ interface FilterBarProps {
   isAutoRefreshing?: boolean;
 }
 
+function TopicsPopover({ onClose }: { onClose: () => void }) {
+  const { filters, toggleCategory, resetCategories, setCategories } = useMapStore();
+  const filtered = filters.categories.length < ALL_CATEGORIES.length;
+  const ref = useRef<HTMLDivElement>(null);
+
+  // Close on outside click or Escape
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (!ref.current?.contains(e.target as Node)) onClose();
+    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    // Defer registration so the opening click doesn't immediately close it
+    const t = setTimeout(() => {
+      document.addEventListener("click", onClick);
+      document.addEventListener("keydown", onKey);
+    }, 0);
+    return () => {
+      clearTimeout(t);
+      document.removeEventListener("click", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        position: "absolute",
+        bottom: "calc(100% + 10px)",
+        left: 0,
+        width: 340,
+        maxWidth: "calc(100vw - 32px)",
+        background: DL.CARD,
+        border: `1px solid ${DL.RULE}`,
+        borderRadius: 16,
+        boxShadow: "0 18px 50px rgba(24,22,19,0.16)",
+        padding: "14px 14px 12px",
+        zIndex: 40,
+        animation: "tooltip-fade-in 0.15s ease-out both",
+        fontFamily: DL.SANS,
+      }}
+    >
+      {/* Header row */}
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 10, padding: "0 4px" }}>
+        <span style={{
+          fontFamily: DL.MONO, fontSize: 10, letterSpacing: 0.14,
+          textTransform: "uppercase", color: DL.DIM,
+        }}>
+          Filter by topic
+        </span>
+        {filtered && (
+          <button
+            onClick={resetCategories}
+            style={{
+              background: "none", border: "none", cursor: "pointer",
+              fontSize: 11, fontWeight: 600, color: DL.CORAL, fontFamily: DL.SANS,
+              padding: 0,
+            }}
+          >
+            Reset
+          </button>
+        )}
+      </div>
+
+      {/* Topic grid — full names, two columns */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+        {ALL_CATEGORIES.map((cat: Category) => {
+          // Unfiltered (all topics) renders as neutral — clicking a chip then
+          // isolates that topic; once filtered, chips toggle individually.
+          const active = filtered && filters.categories.includes(cat);
+          return (
+            <button
+              key={cat}
+              onClick={() => (filtered ? toggleCategory(cat) : setCategories([cat]))}
+              style={{
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "9px 12px",
+                borderRadius: 10,
+                border: `1px solid ${active ? DL.CORAL_BD : DL.RULE_2}`,
+                background: active ? DL.CORAL_50 : "transparent",
+                color: active ? DL.CORAL : DL.INK_2,
+                fontWeight: active ? 600 : 500,
+                fontSize: 12.5,
+                cursor: "pointer",
+                fontFamily: DL.SANS,
+                transition: "all 0.12s ease",
+                textAlign: "left",
+              }}
+            >
+              <CategoryIcon category={cat} size={14} />
+              {cat}
+              {active && (
+                <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: "auto", flexShrink: 0 }}>
+                  <polyline points="3,8.5 6.5,12 13,4.5" />
+                </svg>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{ marginTop: 10, padding: "0 4px", fontSize: 10.5, color: DL.DIM_2, lineHeight: 1.4 }}>
+        {filters.categories.length === 0
+          ? "Nothing selected — the map is empty. Hit Reset to restore all topics."
+          : filtered
+            ? `Showing ${filters.categories.length} of ${ALL_CATEGORIES.length} topics.`
+            : "Showing all topics. Pick one to narrow the map."}
+      </div>
+    </div>
+  );
+}
+
 export default function FilterBar({
   isLoading = false,
   isMock = false,
@@ -23,7 +141,11 @@ export default function FilterBar({
   nextRefreshIn = 90,
   isAutoRefreshing = false,
 }: FilterBarProps) {
-  const { filters, setTimeWindow, toggleCategory } = useMapStore();
+  const { filters, setTimeWindow } = useMapStore();
+  const [topicsOpen, setTopicsOpen] = useState(false);
+  // All categories selected = unfiltered default; only a subset counts as a filter
+  const isFiltered = filters.categories.length < ALL_CATEGORIES.length;
+  const activeCount = isFiltered ? filters.categories.length : 0;
 
   return (
     <div
@@ -41,6 +163,7 @@ export default function FilterBar({
         fontFamily: DL.SANS,
         transition: "opacity 0.2s",
         opacity: isLoading ? 0.7 : 1,
+        position: "relative",
       }}
     >
       {/* Time window pills */}
@@ -73,43 +196,44 @@ export default function FilterBar({
       {/* Divider */}
       <div style={{ width: 1, height: 18, background: DL.RULE, flexShrink: 0 }} />
 
-      {/* Category pills — wrap allowed so they reflow on narrower viewports */}
-      <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-        {ALL_CATEGORIES.map((cat: Category) => {
-          const active = filters.categories.includes(cat);
-          // Shortened labels keep the bar compact at every viewport width
-          const SHORT: Record<string, string> = {
-            Humanitarian: "Hum.", Entertainment: "Ent.",
-            Economics: "Eco.", Technology: "Tech", Environment: "Env.",
-          };
-          const label = SHORT[cat] ?? cat;
-          return (
-            <button
-              key={cat}
-              onClick={() => toggleCategory(cat)}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 5,
-                padding: "4px 10px 4px 8px",
-                borderRadius: 999,
-                border: `1px solid ${active ? DL.CORAL_BD : DL.RULE}`,
-                background: active ? DL.CORAL_50 : "transparent",
-                color: active ? DL.CORAL : DL.DIM,
-                fontWeight: active ? 600 : 500,
-                fontSize: 11,
-                cursor: "pointer",
-                fontFamily: DL.SANS,
-                transition: "all 0.12s ease",
-                whiteSpace: "nowrap",
-              }}
-            >
-              <CategoryIcon category={cat} size={12} />
-              {label}
-            </button>
-          );
-        })}
-      </div>
+      {/* Topics popover trigger */}
+      <button
+        onClick={() => setTopicsOpen((v) => !v)}
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 6,
+          padding: "5px 12px",
+          borderRadius: 999,
+          border: `1px solid ${isFiltered ? DL.CORAL_BD : DL.RULE}`,
+          background: isFiltered ? DL.CORAL_50 : "transparent",
+          color: isFiltered ? DL.CORAL : DL.DIM,
+          fontWeight: 600,
+          fontSize: 12,
+          cursor: "pointer",
+          fontFamily: DL.SANS,
+          transition: "all 0.12s ease",
+          whiteSpace: "nowrap",
+        }}
+      >
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M2 3.5h12M4.5 8h7M6.5 12.5h3" />
+        </svg>
+        Topics
+        {isFiltered && (
+          <span style={{
+            fontFamily: DL.MONO, fontSize: 10, fontWeight: 600,
+            background: DL.CORAL, color: "#fff",
+            borderRadius: 999, padding: "1px 6px", lineHeight: 1.4,
+          }}>
+            {activeCount}
+          </span>
+        )}
+        <svg width="9" height="9" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+          style={{ transform: topicsOpen ? "rotate(180deg)" : "none", transition: "transform 0.15s" }}>
+          <polyline points="3,10 8,5 13,10" />
+        </svg>
+      </button>
+
+      {topicsOpen && <TopicsPopover onClose={() => setTopicsOpen(false)} />}
 
       {/* Divider */}
       <div style={{ width: 1, height: 18, background: DL.RULE, flexShrink: 0 }} />

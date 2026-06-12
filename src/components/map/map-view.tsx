@@ -8,7 +8,7 @@ import CityHeatLayer from "./city-heat-layer";
 import ArcLayer from "./arc-layer";
 import Tooltip from "./tooltip";
 import MapLoader from "@/components/ui/map-loader";
-import ViewToggle from "@/components/ui/view-toggle";
+import { ThemePill } from "@/components/ui/theme-toggle";
 import { useMapStore } from "@/lib/stores/map-store";
 import { useThemeStore } from "@/lib/stores/theme-store";
 import { useWatchlistStore } from "@/lib/stores/watchlist-store";
@@ -86,7 +86,7 @@ export default function MapView({ onSelectCountry }: MapViewProps) {
   const scoresRef = useRef(scores);
   scoresRef.current = scores;
 
-  const { selectedCountry, selectCountry, projection, setProjection } = useMapStore();
+  const { selectedCountry, selectCountry } = useMapStore();
   const { theme } = useThemeStore();
   const dark = theme === "midnight";
   const { watched } = useWatchlistStore();
@@ -99,7 +99,7 @@ export default function MapView({ onSelectCountry }: MapViewProps) {
     mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
 
     // Restore the camera position the user left the globe at (in-memory, per session)
-    const { viewState: saved, setViewState, projection: savedProjection } = useMapStore.getState();
+    const { viewState: saved, setViewState } = useMapStore.getState();
     const isDark = useThemeStore.getState().theme === "midnight";
 
     const map = new mapboxgl.Map({
@@ -125,8 +125,8 @@ export default function MapView({ onSelectCountry }: MapViewProps) {
       setMapLoaded(true);
       setContainerWidth(containerRef.current?.offsetWidth ?? 0);
 
-      // Projection from store (Globe/Flat toggle) + theme fog
-      map.setProjection({ name: savedProjection });
+      // Globe projection (permanent) + theme fog
+      map.setProjection({ name: "globe" });
       map.setFog(isDark ? FOG_MIDNIGHT : FOG_DAYLIGHT);
 
       // ── Hover ────────────────────────────────────────────────────────────
@@ -221,12 +221,6 @@ export default function MapView({ onSelectCountry }: MapViewProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Projection toggle — live switch, no style reload needed ────────────────
-  useEffect(() => {
-    if (!mapLoaded || !mapRef.current) return;
-    mapRef.current.setProjection({ name: projection });
-  }, [projection, mapLoaded]);
-
   return (
     <div className="relative h-full w-full">
       {!mapLoaded && <MapLoader />}
@@ -304,12 +298,12 @@ export default function MapView({ onSelectCountry }: MapViewProps) {
         </div>
       )}
 
-      {/* Projection toggle — top-right of the map (legend sits right-mid) */}
+      {/* Day/Night switch — top-right of the map (legend sits right-mid) */}
       <div
         className="desktop-only"
         style={{ position: "absolute", top: 16, right: 16, zIndex: 10 }}
       >
-        <ViewToggle value={projection} onChange={setProjection} />
+        <ThemePill />
       </div>
     </div>
   );

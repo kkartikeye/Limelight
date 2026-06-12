@@ -51,8 +51,9 @@ without user demand. City-level heat already covers the zoom-in story.
 | Feature | Detail |
 |---|---|
 | **Midnight dark mode** | ✅ DL tokens converted to CSS variables (`globals.css`); `data-theme="midnight"` flips every inline style. Header sun/moon toggle, localStorage persistence, pre-paint init script (no flash). Map remounts with dark-v11 basemap + midnight fog. |
-| **Globe/Flat toggle** | ✅ Re-enabled — `ViewToggle` overlays the map top-right, wired to `map-store` projection, live `setProjection` switch. |
-| **Category icons** | ✅ `category-icon.tsx` — 8 line glyphs (sabres, heart, columns, chart, chip, leaf, ball, clapper) in the filter bar + Topics cards (replaced emoji). |
+| **Globe/Flat toggle** | ❌ Removed (2026-06-12, user feedback) — globe is the permanent projection again; the top-right map slot now hosts the Day/Night `ThemePill` instead. |
+| **Category icons** | ✅ `category-icon.tsx` — 8 line glyphs (sabres, heart, columns, chart, chip, leaf, ball, clapper) in the Topics popover + Topics cards (replaced emoji). |
+| **Filter bar v2** | ✅ (2026-06-12 feedback) Shorthand category pills replaced by a Topics popover — full names + icons in a 2-column grid, isolate-on-first-click, Reset, active-count badge. Regions page emoji replaced with mono region-code badges. Hover tooltip now uses a themed `--dl-glass` surface (was hardcoded white in Midnight). |
 | **PWA** | ✅ `app/manifest.ts`, generated icons (192/512), `public/sw.js` (SWR for static assets, network-first navigation, `offline.html` fallback), prod-only registration. |
 | **Direct-to-source links** | ✅ Decision: keep the internal reader as the primary click; StoryPanel headline rows get an ↗ shortcut straight to the publisher. |
 | **Typed Supabase client** | ✅ `src/lib/types/database.ts` hand-generated from the live PostgREST OpenAPI schema (CLI auth unavailable); all three clients typed; every `as unknown as Row` cast in API routes removed — joins now infer. |

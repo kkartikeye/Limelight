@@ -10,16 +10,16 @@ import { countryName } from "@/lib/utils/countries";
 import { DL } from "@/lib/design-tokens";
 
 // ─── World region definitions ─────────────────────────────────────────────────
-// Each entry maps a friendly region name + icon to a set of ISO 3166-1 alpha-3 codes.
+// Each entry maps a friendly region name + mono code badge to ISO 3166-1 alpha-3 codes.
 const WORLD_REGIONS: {
   name: string;
-  icon: string;
+  code: string;
   desc: string;
   isos: readonly string[];
 }[] = [
   {
     name: "Europe",
-    icon: "🇪🇺",
+    code: "EUR",
     desc: "EU, UK, Russia & neighbours",
     isos: [
       "GBR","FRA","DEU","ITA","ESP","POL","NLD","BEL","SWE","NOR","DNK","FIN",
@@ -28,7 +28,7 @@ const WORLD_REGIONS: {
   },
   {
     name: "Middle East",
-    icon: "🕌",
+    code: "MEA",
     desc: "Gulf, Levant & North Africa",
     isos: [
       "ISR","IRN","IRQ","SAU","ARE","QAT","KWT","JOR","LBN","SYR","YEM",
@@ -37,7 +37,7 @@ const WORLD_REGIONS: {
   },
   {
     name: "Asia Pacific",
-    icon: "🌏",
+    code: "APAC",
     desc: "East Asia, South Asia & Southeast Asia",
     isos: [
       "CHN","JPN","KOR","PRK","IND","PAK","BGD","NPL","AFG","MMR","THA",
@@ -46,7 +46,7 @@ const WORLD_REGIONS: {
   },
   {
     name: "Americas",
-    icon: "🌎",
+    code: "AMER",
     desc: "North America, Latin America & the Caribbean",
     isos: [
       "USA","CAN","MEX","BRA","ARG","COL","CHL","PER","VEN","CUB",
@@ -54,7 +54,7 @@ const WORLD_REGIONS: {
   },
   {
     name: "Sub-Saharan Africa",
-    icon: "🌍",
+    code: "AFR",
     desc: "East, West, Central & Southern Africa",
     isos: [
       "NGA","SOM","ETH","KEN","TZA","UGA","ZAF","ZWE","MOZ","AGO",
@@ -65,14 +65,14 @@ const WORLD_REGIONS: {
 
 interface RegionCardProps {
   name: string;
-  icon: string;
+  code: string;
   desc: string;
   isos: readonly string[];
   scores: Record<string, { score: number; articleCount: number }> | null;
   isLoading: boolean;
 }
 
-function RegionCard({ name, icon, desc, isos, scores, isLoading }: RegionCardProps) {
+function RegionCard({ name, code, desc, isos, scores, isLoading }: RegionCardProps) {
   // Sort countries in this region by live score descending
   const ranked = useMemo(() => {
     if (!scores) return [];
@@ -110,7 +110,15 @@ function RegionCard({ name, icon, desc, isos, scores, isLoading }: RegionCardPro
       {/* Header */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 14 }}>
         <div>
-          <div style={{ fontSize: 22, marginBottom: 5, lineHeight: 1 }}>{icon}</div>
+          {/* Mono region code badge — replaces the old emoji */}
+          <div style={{
+            display: "inline-flex", alignItems: "center",
+            fontFamily: DL.MONO, fontSize: 9.5, fontWeight: 600,
+            letterSpacing: 0.18, textTransform: "uppercase",
+            color: DL.CORAL, background: DL.CORAL_50,
+            border: `1px solid ${DL.CORAL_BD}`,
+            borderRadius: 6, padding: "3px 7px", marginBottom: 8, lineHeight: 1,
+          }}>{code}</div>
           <h2 style={{
             fontFamily: DL.DISPLAY, fontSize: 24, fontWeight: 400,
             letterSpacing: -0.5, color: DL.INK, margin: 0, lineHeight: 1.1,
@@ -297,7 +305,7 @@ export default function RegionsPage() {
               <RegionCard
                 key={region.name}
                 name={region.name}
-                icon={region.icon}
+                code={region.code}
                 desc={region.desc}
                 isos={region.isos}
                 scores={scores}
