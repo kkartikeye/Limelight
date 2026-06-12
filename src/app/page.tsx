@@ -6,7 +6,7 @@ import Header from "@/components/ui/header";
 import BottomTabBar from "@/components/ui/bottom-tab-bar";
 import MapView from "@/components/map/map-view";
 import FilterBar from "@/components/filters/filter-bar";
-import HeatLegend from "@/components/ui/heat-legend";
+import HeatLegend, { HeatLegendCompact } from "@/components/ui/heat-legend";
 import StoryPanel from "@/components/panel/story-panel";
 import { useMapStore } from "@/lib/stores/map-store";
 import { useThemeStore } from "@/lib/stores/theme-store";
@@ -96,6 +96,37 @@ export default function Home() {
               {/* Subtitle */}
               <div style={{ fontSize: 13, color: DL.DIM, marginTop: 10, lineHeight: 1.4, maxWidth: 380, fontFamily: DL.SANS }}>
                 Every country weighted by how loudly the world is reporting from it.
+              </div>
+            </div>
+
+            {/* ── Mobile hero — compact headline so first-time visitors get
+                context; desktop hero above is hidden under 768px ───────────── */}
+            <div
+              className="mobile-only"
+              style={{
+                position: "absolute", top: 10, left: 12, right: 12, zIndex: 10,
+                alignItems: "flex-start", justifyContent: "space-between", gap: 10,
+              }}
+            >
+              <div style={{ pointerEvents: "none", minWidth: 0 }}>
+                <div style={{
+                  fontFamily: DL.MONO, fontSize: 9, letterSpacing: 0.16,
+                  textTransform: "uppercase", color: DL.CORAL,
+                  display: "flex", alignItems: "center", gap: 6, marginBottom: 5,
+                }}>
+                  <span style={{ width: 5, height: 5, borderRadius: 999, background: DL.CORAL, flexShrink: 0 }} />
+                  Today · global news intensity
+                </div>
+                <div style={{
+                  fontFamily: DL.DISPLAY, fontSize: 21, fontWeight: 400,
+                  letterSpacing: -0.5, lineHeight: 1.05, color: DL.INK, maxWidth: 210,
+                }}>
+                  Where the news is <em>loudest</em> right now.
+                </div>
+              </div>
+              {/* Compact legend — tap for the methodology card */}
+              <div style={{ flexShrink: 0 }}>
+                <HeatLegendCompact />
               </div>
             </div>
 

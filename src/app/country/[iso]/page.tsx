@@ -95,6 +95,14 @@ export default function CountryPage({ params, searchParams }: PageProps) {
 
   const heroArticle = articles[0];
 
+  // Global rank: position of this country when all scores sort descending
+  const rank = useMemo(() => {
+    if (!scores?.[iso]) return null;
+    const sorted = Object.entries(scores).sort((a, b) => b[1].score - a[1].score);
+    const idx = sorted.findIndex(([k]) => k === iso);
+    return idx >= 0 ? idx + 1 : null;
+  }, [scores, iso]);
+
   // Live-updating time for the hero story timestamp
   const heroTime = useRelativeTime(heroArticle?.publishedAt ?? "");
 
@@ -158,7 +166,7 @@ export default function CountryPage({ params, searchParams }: PageProps) {
                 {iso}
               </span>
               {isLive && (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, color: DL.LIVE, fontWeight: 600 }}>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, color: DL.LIVE, fontWeight: 600, whiteSpace: "nowrap" }}>
                   <span style={{ width: 6, height: 6, borderRadius: 999, background: DL.LIVE, display: "inline-block" }} />
                   LIVE COVERAGE
                 </span>
@@ -175,7 +183,7 @@ export default function CountryPage({ params, searchParams }: PageProps) {
               ["Intensity",  score.toString(),               DL.CORAL,  "coverage score"],
               ["Articles",   articles.length.toString(),     DL.INK,    `across ${sourceCount} outlets`],
               ["Top cat.",   articles[0]?.category ?? "—",  DL.CORAL,  "most reported"],
-              ["Rank",       scoreEntry ? "#—" : "—",        DL.INK,    "globally today"],
+              ["Rank",       rank ? `#${rank}` : "—",        DL.INK,    "globally today"],
             ].map(([k, v, c, sub], i) => (
               <div key={k} className="country-stat" style={{
                 flex: 1, padding: "14px 0",
