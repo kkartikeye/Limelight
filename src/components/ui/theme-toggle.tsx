@@ -34,46 +34,47 @@ function useMountedTheme() {
   return { midnight: mounted && theme === "midnight", toggleTheme };
 }
 
-/** Two-option Day/Night pill — overlaid top-right of the map. */
+/** Two-segment Day/Night pill — overlaid top-right of the map. The whole pill
+ *  is one button: clicking anywhere flips the theme. */
 export function ThemePill() {
   const { midnight, toggleTheme } = useMountedTheme();
 
-  const item = (active: boolean, label: string, icon: React.ReactNode, onClick: () => void) => (
-    <button
-      onClick={onClick}
-      className="flex items-center gap-1.5 font-body transition-all"
+  const segment = (active: boolean, label: string, icon: React.ReactNode) => (
+    <span
+      className="flex items-center gap-1.5 font-body"
       style={{
         padding: "5px 10px 5px 8px",
         borderRadius: 999,
-        border: "none",
         background: active ? DL.INK : "transparent",
         color: active ? DL.PAPER : DL.DIM,
         fontSize: 12,
         fontWeight: active ? 600 : 500,
-        cursor: "pointer",
         transition: "all 0.15s ease",
       }}
     >
       {icon}
       {label}
-    </button>
+    </span>
   );
 
   return (
-    <div
+    <button
+      onClick={toggleTheme}
+      aria-label={midnight ? "Switch to Daylight theme" : "Switch to Midnight theme"}
       style={{
         display: "inline-flex",
         gap: 2,
         padding: 3,
         borderRadius: 999,
-        background: DL.CARD,
         border: `1px solid ${DL.RULE}`,
+        background: DL.CARD,
         boxShadow: "0 4px 16px rgba(24,22,19,0.05)",
+        cursor: "pointer",
       }}
     >
-      {item(!midnight, "Day", <SunIcon />, () => { if (midnight) toggleTheme(); })}
-      {item(midnight, "Night", <MoonIcon />, () => { if (!midnight) toggleTheme(); })}
-    </div>
+      {segment(!midnight, "Day", <SunIcon />)}
+      {segment(midnight, "Night", <MoonIcon />)}
+    </button>
   );
 }
 

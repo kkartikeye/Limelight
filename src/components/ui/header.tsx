@@ -203,6 +203,15 @@ export default function Header({ active = "Today" }: HeaderProps) {
         {/* Clock */}
         <span className="header-clock"><LiveClock /></span>
 
+        {/* Developers / API docs */}
+        <Link
+          href="/developers"
+          className="header-clock no-underline font-plex"
+          style={{ fontSize: 11, letterSpacing: "0.10em", color: DL.DIM }}
+        >
+          API
+        </Link>
+
         {/* Theme toggle */}
         <ThemeToggleIcon />
 

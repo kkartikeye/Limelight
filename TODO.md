@@ -1,6 +1,6 @@
 # Limelight — Improvement Backlog
 
-Updated 2026-06-12. Items marked ✅ are complete. Phases 1–9 are shipped; this
+Updated 2026-06-12. Items marked ✅ are complete. Phases 1–10 are shipped; this
 file now tracks the few remaining open items and the historical phase record.
 
 ---
@@ -45,6 +45,7 @@ without user demand. City-level heat already covers the zoom-in story.
 | 7 — Data quality | Guardian + GDELT, fuzzy dedup, credibility registry, snippets | ✅ |
 | 8 — Distribution (free tier) | Retention pruning, public API, embeds, edge caching | ✅ |
 | 9 — Polish & engagement | See below | ✅ |
+| 10 — Share-ready | /developers docs page, sitemap/robots, OG share card, ThemePill click-anywhere | ✅ |
 
 ### Phase 9 (2026-06-12) — Polish & engagement batch
 
@@ -60,6 +61,15 @@ without user demand. City-level heat already covers the zoom-in story.
 | **Typed Supabase client** | ✅ `src/lib/types/database.ts` hand-generated from the live PostgREST OpenAPI schema (CLI auth unavailable); all three clients typed; every `as unknown as Row` cast in API routes removed — joins now infer. |
 | **For You feed** | ✅ `/api/feed` — watchlist countries ranked by credibility × recency decay; signed-in users get read-history exclusion. Rendered on /saved below the watchlist grid. |
 | **Push alerts** | ✅ web-push (VAPID) + `push_subscriptions` table (`docs/migration_phase9_push.sql`); threshold prefs UI on /saved; dispatch hooked into the scoring run with 6h cooldown and dead-endpoint pruning. **Needs the one-time provisioning above.** |
+
+### Phase 10 (2026-06-12) — Share-ready batch
+
+| Feature | Detail |
+|---|---|
+| **ThemePill click-anywhere** | ✅ The Day/Night map pill is now a single button — clicking any part of it (including the active segment) toggles the theme. |
+| **/developers page** | ✅ Public docs for `GET /api/v1/scores` (params, response shape, rate limits) and the `/embed` iframe widget, with copy-to-clipboard snippets. Linked as "API" in the desktop header. |
+| **SEO routes** | ✅ `app/sitemap.ts` (4 stable pages; live-data pages deliberately excluded) + `app/robots.ts` (blocks /api, /saved, /embed, /auth). |
+| **OG share card** | ✅ `app/opengraph-image.tsx` — edge-rendered 1200×630 brand card (rings mark, wordmark, tagline) so shared links unfurl properly. `metadataBase`/OG/Twitter meta already existed in layout.tsx. |
 
 ---
 
