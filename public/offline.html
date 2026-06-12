@@ -12,11 +12,7 @@
     font-family: "Manrope", system-ui, sans-serif;
     text-align: center; padding: 24px;
   }
-  .mark { position: relative; width: 44px; height: 44px; margin-bottom: 20px; }
-  .mark div { position: absolute; border-radius: 999px; }
-  .o { inset: 0; background: #e0573c; }
-  .p { inset: 8px; background: #f6f3ec; }
-  .d { inset: 14px; background: #e0573c; }
+  .mark { width: 44px; height: 44px; margin-bottom: 20px; }
   h1 { font-family: Georgia, serif; font-weight: 400; font-size: 28px; letter-spacing: -0.5px; margin: 0 0 8px; }
   p  { color: #7a7568; font-size: 14px; margin: 0 0 20px; max-width: 320px; line-height: 1.5; }
   button {
@@ -27,7 +23,11 @@
 </style>
 </head>
 <body>
-  <div class="mark"><div class="o"></div><div class="p"></div><div class="d"></div></div>
+  <svg class="mark" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <circle cx="7.2" cy="16.8" r="3.4" fill="#e0573c"/>
+    <path d="M 7.9 8.83 A 8 8 0 0 1 15.17 16.1" stroke="#e0573c" stroke-width="2.8" stroke-linecap="round"/>
+    <path d="M 8.3 4.25 A 12.6 12.6 0 0 1 19.75 15.7" stroke="#e0573c" stroke-width="2.8" stroke-linecap="round"/>
+  </svg>
   <h1>You&rsquo;re offline</h1>
   <p>Limelight needs a connection to load live coverage. Reconnect and try again.</p>
   <button onclick="location.reload()">Retry</button>

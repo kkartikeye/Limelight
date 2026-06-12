@@ -40,19 +40,15 @@ export default function OpengraphImage() {
           background: "radial-gradient(circle, rgba(240,147,107,0.20) 0%, rgba(240,147,107,0) 70%)",
         }} />
 
-        {/* Concentric-rings mark */}
-        <div style={{
-          display: "flex", alignItems: "center", justifyContent: "center",
-          width: 96, height: 96, borderRadius: 9999, background: CORAL,
-          marginBottom: 36,
-        }}>
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "center",
-            width: 62, height: 62, borderRadius: 9999, background: PAPER,
-          }}>
-            <div style={{ width: 30, height: 30, borderRadius: 9999, background: CORAL }} />
-          </div>
-        </div>
+        {/* Broadcast mark — coral dot radiating two arcs */}
+        <svg
+          width="104" height="104" viewBox="0 0 24 24" fill="none"
+          style={{ marginBottom: 36 }}
+        >
+          <circle cx="7.2" cy="16.8" r="3.4" fill={CORAL} />
+          <path d="M 7.9 8.83 A 8 8 0 0 1 15.17 16.1" stroke={CORAL} strokeWidth="2.8" strokeLinecap="round" />
+          <path d="M 8.3 4.25 A 12.6 12.6 0 0 1 19.75 15.7" stroke={CORAL} strokeWidth="2.8" strokeLinecap="round" />
+        </svg>
 
         <div style={{ fontSize: 92, color: INK, letterSpacing: -3, fontWeight: 500 }}>
           Limelight
