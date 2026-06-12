@@ -41,28 +41,18 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  type ArticleRow = {
-    id: string;
-    title: string;
-    url: string;
-    published_at: string;
-    category: string | null;
-  };
-
   // Sort newest-first in JS — avoids PostgREST foreign-table order syntax issues
-  const sorted = (data ?? []).slice().sort((a, b) => {
-    const aRow = a as unknown as { articles: { published_at: string } };
-    const bRow = b as unknown as { articles: { published_at: string } };
-    return new Date(bRow.articles.published_at).getTime() - new Date(aRow.articles.published_at).getTime();
-  });
+  const sorted = (data ?? []).slice().sort((a, b) =>
+    new Date(b.articles.published_at).getTime() - new Date(a.articles.published_at).getTime()
+  );
 
   const features = sorted.map((row) => {
-    const article = (row.articles as unknown) as ArticleRow;
+    const article = row.articles;
     return {
       type: "Feature" as const,
       geometry: {
         type: "Point" as const,
-        coordinates: [row.longitude as number, row.latitude as number],
+        coordinates: [row.longitude ?? 0, row.latitude ?? 0],
       },
       properties: {
         id:           article.id,

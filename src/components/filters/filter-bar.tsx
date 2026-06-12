@@ -4,6 +4,7 @@ import { useMapStore, ALL_CATEGORIES } from "@/lib/stores/map-store";
 import type { TimeWindow, Category } from "@/lib/stores/map-store";
 import { DL } from "@/lib/design-tokens";
 import { relativeTimeSince } from "@/lib/utils/time";
+import CategoryIcon from "@/components/ui/category-icon";
 
 const TIME_WINDOWS: TimeWindow[] = ["1h", "6h", "24h", "7d", "30d"];
 
@@ -87,7 +88,10 @@ export default function FilterBar({
               key={cat}
               onClick={() => toggleCategory(cat)}
               style={{
-                padding: "4px 10px",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                padding: "4px 10px 4px 8px",
                 borderRadius: 999,
                 border: `1px solid ${active ? DL.CORAL_BD : DL.RULE}`,
                 background: active ? DL.CORAL_50 : "transparent",
@@ -100,6 +104,7 @@ export default function FilterBar({
                 whiteSpace: "nowrap",
               }}
             >
+              <CategoryIcon category={cat} size={12} />
               {label}
             </button>
           );
@@ -122,7 +127,7 @@ export default function FilterBar({
         ) : isMock ? (
           <span style={{
             padding: "2px 7px", borderRadius: 999, fontSize: 9.5, fontWeight: 600,
-            background: "#fff8f0", color: DL.CORAL, border: `1px solid ${DL.CORAL_BD}`,
+            background: DL.CORAL_50, color: DL.CORAL, border: `1px solid ${DL.CORAL_BD}`,
           }}>
             Demo data
           </span>

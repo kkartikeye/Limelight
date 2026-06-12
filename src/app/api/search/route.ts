@@ -41,12 +41,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  type LocationRow = { country_code: string; is_primary: boolean };
-  type SourceRow = { name: string; domain: string; credibility: number } | null;
-
   const results = (data ?? []).map((row) => {
-    const src = row.sources as unknown as SourceRow;
-    const locs = (row.article_locations ?? []) as unknown as LocationRow[];
+    const src = row.sources;
+    const locs = row.article_locations ?? [];
     // Prefer the primary location; fall back to first available
     const loc = locs.find((l) => l.is_primary) ?? locs[0] ?? null;
 
@@ -55,7 +52,7 @@ export async function GET(req: NextRequest) {
       headline:       row.title,
       url:            row.url,
       publishedAt:    row.published_at,
-      category:       (row.category as string) ?? "Politics",
+      category:       row.category ?? "Politics",
       source:         src?.name ?? src?.domain ?? "Unknown",
       domain:         src?.domain ?? "",
       credibilityTier:

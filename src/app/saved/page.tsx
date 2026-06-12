@@ -8,10 +8,14 @@ import { useWatchlistStore } from "@/lib/stores/watchlist-store";
 import { useUser } from "@/lib/hooks/use-user";
 import { useScores } from "@/lib/hooks/use-scores";
 import { DL } from "@/lib/design-tokens";
+import ForYouFeed from "@/components/ui/for-you-feed";
+import AlertSettings from "@/components/ui/alert-settings";
+import { useMemo } from "react";
 
 export default function SavedPage() {
   const { watched, toggleWatch } = useWatchlistStore();
   const { user } = useUser();
+  const watchedIsos = useMemo(() => watched.map((w) => w.iso), [watched]);
 
   // Mirror unwatch to server when signed in
   const handleUnwatch = useCallback((iso: string, name: string) => {
@@ -236,6 +240,14 @@ export default function SavedPage() {
               );
             })}
           </div>
+        )}
+
+        {/* Alerts + personalised feed — only meaningful with a watchlist */}
+        {watched.length > 0 && (
+          <>
+            <AlertSettings watchedIsos={watchedIsos} />
+            <ForYouFeed watchedIsos={watchedIsos} />
+          </>
         )}
       </div>
 

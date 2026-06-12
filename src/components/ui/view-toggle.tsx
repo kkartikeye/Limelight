@@ -1,6 +1,7 @@
 "use client";
 
 import type { Projection } from "@/lib/stores/map-store";
+import { DL } from "@/lib/design-tokens";
 
 interface ViewToggleProps {
   value: Projection;
@@ -41,8 +42,8 @@ function Item({ id, label, icon, active, onClick }: ItemProps) {
         padding: "5px 10px 5px 8px",
         borderRadius: 999,
         border: "none",
-        background: active ? "#181613" : "transparent",
-        color: active ? "#f6f3ec" : "#7a7568",
+        background: active ? DL.INK : "transparent",
+        color: active ? DL.PAPER : DL.DIM,
         fontSize: 12,
         fontWeight: active ? 600 : 500,
         cursor: "pointer",
@@ -65,8 +66,8 @@ export default function ViewToggle({ value, onChange }: ViewToggleProps) {
         gap: 2,
         padding: 3,
         borderRadius: 999,
-        background: "#ffffff",
-        border: "1px solid rgba(24,22,19,0.10)",
+        background: DL.CARD,
+        border: `1px solid ${DL.RULE}`,
         boxShadow: "0 4px 16px rgba(24,22,19,0.05)",
       }}
     >

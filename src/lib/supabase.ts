@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/lib/types/database";
 
 const url = process.env.SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -8,6 +9,6 @@ if (!url || !key) {
 }
 
 // Server-only client — never import this in a 'use client' file
-export const supabase = createClient(url, key, {
+export const supabase = createClient<Database>(url, key, {
   auth: { persistSession: false },
 });

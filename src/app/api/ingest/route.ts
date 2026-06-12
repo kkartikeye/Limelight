@@ -4,6 +4,7 @@ import { createHash } from "crypto";
 import { fetchGuardian, type NormalisedArticle } from "@/lib/ingest/guardian";
 import { dedupeByTitle } from "@/lib/ingest/similarity";
 import { credibilityFor, registryEntries } from "@/lib/ingest/credibility";
+import { dispatchIntensityAlerts } from "@/lib/push/alerts";
 
 export const maxDuration = 60; // respected on Pro; Hobby is still capped at 10s
 
@@ -575,12 +576,8 @@ async function computeScores(results: { scored: number; errors: string[] }) {
 
   for (const art of articles ?? []) {
     // article_locations is an array (one-to-many from articles)
-    const locations = art.article_locations as unknown as Array<{
-      country_code: string;
-      is_primary: boolean;
-      confidence: number;
-    }>;
-    const src = art.sources as unknown as { credibility: number } | null;
+    const locations = art.article_locations;
+    const src = art.sources;
 
     const hoursOld = (Date.now() - new Date(art.published_at).getTime()) / 3_600_000;
     const recencyDecay = Math.exp(-0.1 * hoursOld);
@@ -615,6 +612,11 @@ async function computeScores(results: { scored: number; errors: string[] }) {
       .upsert(scoreRows, { onConflict: "country_code,time_bucket" });
     if (scoreErr) results.errors.push(`Score upsert: ${scoreErr.message}`);
     else results.scored = scoreRows.length;
+
+    // Fire intensity alerts for watchlist subscribers (no-op when push isn't
+    // configured or the push_subscriptions table doesn't exist yet)
+    const scoreMap = Object.fromEntries(scoreRows.map((r) => [r.country_code, r.score]));
+    await dispatchIntensityAlerts(scoreMap, results.errors);
   }
 
   // ── Retention pruning (free-tier survival) ───────────────────────────────

@@ -33,18 +33,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  type LocationRow = {
-    article_id: string;
-    country_code: string;
-    latitude: number;
-    longitude: number;
-    is_primary: boolean;
-    articles: { id: string; title: string; category: string | null; published_at: string };
-  };
+  type LocationRow = NonNullable<typeof data>[number];
 
   // Group location rows by article_id
   const byArticle = new Map<string, LocationRow[]>();
-  for (const row of (data ?? []) as unknown as LocationRow[]) {
+  for (const row of data ?? []) {
     const group = byArticle.get(row.article_id) ?? [];
     group.push(row);
     byArticle.set(row.article_id, group);

@@ -1,4 +1,5 @@
 import { createBrowserClient } from "@supabase/ssr";
+import type { Database } from "@/lib/types/database";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -10,12 +11,12 @@ if (!url || !key) {
 }
 
 // Singleton pattern — reuse the same client across the browser session.
-let _client: ReturnType<typeof createBrowserClient> | null = null;
+let _client: ReturnType<typeof createBrowserClient<Database>> | null = null;
 
 export function getSupabaseBrowser() {
   if (!_client) {
     // Non-null assertion: we throw above if either is missing.
-    _client = createBrowserClient(url!, key!);
+    _client = createBrowserClient<Database>(url!, key!);
   }
   return _client;
 }

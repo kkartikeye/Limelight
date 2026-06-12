@@ -2,12 +2,45 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Daylight base ────────────────────────────────────────────────────────────
-   Off-white paper background, ink-black text. No dark-mode override — Daylight
-   is intentionally a light-only treatment. */
+/* ── Theme tokens ─────────────────────────────────────────────────────────────
+   Daylight (default) and Midnight palettes. JS consumers read these through
+   the DL object in design-tokens.ts (var(--dl-*) strings), so flipping
+   data-theme on <html> re-themes every inline style in the app. */
 :root {
-  --background: #f6f3ec;
-  --foreground: #181613;
+  --dl-paper:    #f6f3ec;
+  --dl-paper-2:  #efeadf;
+  --dl-card:     #ffffff;
+  --dl-ink:      #181613;
+  --dl-ink-2:    #3a3025;
+  --dl-dim:      #7a7568;
+  --dl-dim-2:    #aaa492;
+  --dl-rule:     rgba(24,22,19,0.10);
+  --dl-rule-2:   rgba(24,22,19,0.05);
+  --dl-coral:    #e0573c;
+  --dl-coral-50: #fff0ea;
+  --dl-coral-bd: #fac7b8;
+  --dl-live:     #2a8a5e;
+  --dl-chip:     #f0ede7;
+
+  --background: var(--dl-paper);
+  --foreground: var(--dl-ink);
+}
+
+[data-theme="midnight"] {
+  --dl-paper:    #16140f;
+  --dl-paper-2:  #1d1a14;
+  --dl-card:     #221f18;
+  --dl-ink:      #f1ece0;
+  --dl-ink-2:    #d8d0bf;
+  --dl-dim:      #99927e;
+  --dl-dim-2:    #645e50;
+  --dl-rule:     rgba(241,236,224,0.13);
+  --dl-rule-2:   rgba(241,236,224,0.07);
+  --dl-coral:    #f2785c;
+  --dl-coral-50: #3a2118;
+  --dl-coral-bd: #6a3424;
+  --dl-live:     #43b27c;
+  --dl-chip:     #2a261e;
 }
 
 html {
@@ -182,11 +215,15 @@ body {
   font-family: var(--font-plex), monospace;
   font-size: 9px !important;
 }
+[data-theme="midnight"] .mapboxgl-ctrl-attrib {
+  background: rgba(22,20,15,0.85) !important;
+  color: #99927e !important;
+}
 
-/* ── Article-pin popup — Daylight light theme ─────────────────────────────── */
+/* ── Article-pin popup — themed via DL vars ───────────────────────────────── */
 .limelight-popup .mapboxgl-popup-content {
-  background:       #ffffff;
-  border:           1px solid rgba(24,22,19,0.10);
+  background:       var(--dl-card);
+  border:           1px solid var(--dl-rule);
   border-radius:    12px;
   padding:          12px 14px;
   box-shadow:       0 16px 40px rgba(24,22,19,0.12);

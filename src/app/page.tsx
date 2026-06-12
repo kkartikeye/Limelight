@@ -9,6 +9,7 @@ import FilterBar from "@/components/filters/filter-bar";
 import HeatLegend from "@/components/ui/heat-legend";
 import StoryPanel from "@/components/panel/story-panel";
 import { useMapStore } from "@/lib/stores/map-store";
+import { useThemeStore } from "@/lib/stores/theme-store";
 import { useScores } from "@/lib/hooks/use-scores";
 import { countryName as isoToName } from "@/lib/utils/countries";
 import { DL } from "@/lib/design-tokens";
@@ -22,6 +23,7 @@ export default function Home() {
   } = useMapStore();
 
   const { scores, isLoading, isMock, lastUpdated, nextRefreshIn, isAutoRefreshing } = useScores();
+  const { theme } = useThemeStore();
 
   // On mobile (panel sidebar is hidden by CSS), navigate to the full country page
   // instead of trying to open the panel. Desktop behaviour is unchanged.
@@ -58,7 +60,9 @@ export default function Home() {
         >
           {/* Map takes all remaining height */}
           <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
-            <MapView onSelectCountry={handleSelectCountry} />
+            {/* key={theme} remounts the map on theme change — Mapbox styles
+                can't be hot-swapped without losing all custom layers */}
+            <MapView key={theme} onSelectCountry={handleSelectCountry} />
 
             {/* ── Hero text overlay — top-left of globe ────────────────────── */}
             <div

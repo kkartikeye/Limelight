@@ -12,30 +12,37 @@
  *   - All UI components via Tailwind classes (bg-paper, text-coral, etc.)
  */
 
-// ─── Daylight color tokens ─────────────────────────────────────────────────────
+// ─── Color tokens — CSS variable references ───────────────────────────────────
+// Values resolve through globals.css, so [data-theme="midnight"] re-themes every
+// inline style at once. CSS vars are valid anywhere the DOM renders (inline
+// styles, SVG fills) but NOT in Mapbox GL paint expressions — use the *_HEX
+// constants below for those.
 export const DL = {
   // Surfaces
-  PAPER:    "#f6f3ec",
-  PAPER_2:  "#efeadf",
-  CARD:     "#ffffff",
+  PAPER:    "var(--dl-paper)",
+  PAPER_2:  "var(--dl-paper-2)",
+  CARD:     "var(--dl-card)",
 
   // Text
-  INK:      "#181613",
-  INK_2:    "#3a3025",
-  DIM:      "#7a7568",
-  DIM_2:    "#aaa492",
+  INK:      "var(--dl-ink)",
+  INK_2:    "var(--dl-ink-2)",
+  DIM:      "var(--dl-dim)",
+  DIM_2:    "var(--dl-dim-2)",
 
   // Hairlines
-  RULE:     "rgba(24,22,19,0.10)",
-  RULE_2:   "rgba(24,22,19,0.05)",
+  RULE:     "var(--dl-rule)",
+  RULE_2:   "var(--dl-rule-2)",
 
   // Accent — coral only. Used sparingly for state, live cues, and intensity.
-  CORAL:    "#e0573c",
-  CORAL_50: "#fff0ea",  // pill background
-  CORAL_BD: "#fac7b8",  // pill border
+  CORAL:    "var(--dl-coral)",
+  CORAL_50: "var(--dl-coral-50)",  // pill background
+  CORAL_BD: "var(--dl-coral-bd)",  // pill border
+
+  // Neutral chip background (low-intensity pills)
+  CHIP:     "var(--dl-chip)",
 
   // Live indicator
-  LIVE:     "#2a8a5e",
+  LIVE:     "var(--dl-live)",
 
   // Globe shading
   GLOBE_HIGHLIGHT: "#fbf6e9",
@@ -47,6 +54,10 @@ export const DL = {
   SANS:    '"Manrope", "IBM Plex Sans", system-ui, sans-serif',
   MONO:    '"IBM Plex Mono", ui-monospace, monospace',
 } as const;
+
+// ─── Raw hex for non-CSS contexts (Mapbox GL expressions) ──────────────────────
+// Mapbox paint properties are parsed by GL, not the DOM — CSS vars don't work.
+export const CORAL_HEX = "#e0573c";
 
 // ─── Heat ramp — cream → peach → coral (7 stops, no crimson) ──────────────────
 // Format: [score_0–100, hex]. Used in FILL_COLOR_EXPR and HeatLegend gradient.

@@ -57,41 +57,22 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  type ArticleRow = {
-    id: string;
-    title: string;
-    url: string;
-    published_at: string;
-    category: string | null;
-    severity: number | null;
-    body_snippet: string | null;
-    sources: { name: string; domain: string; credibility: number } | null;
-  };
-
-  type LocationRow = {
-    articles: ArticleRow;
-  };
-
   // Sort newest-first in JS — avoids PostgREST foreign-table order syntax issues
-  const sorted = (data ?? []).slice().sort((a, b) => {
-    const aRow = a as unknown as { articles: { published_at: string } };
-    const bRow = b as unknown as { articles: { published_at: string } };
-    return new Date(bRow.articles.published_at).getTime() - new Date(aRow.articles.published_at).getTime();
-  });
+  const sorted = (data ?? []).slice().sort((a, b) =>
+    new Date(b.articles.published_at).getTime() - new Date(a.articles.published_at).getTime()
+  );
 
   // Deduplicate: one article can appear via multiple article_locations rows
   // (e.g. an article tagged to both Moscow and Saint Petersburg for the same country).
   const seenIds = new Set<string>();
   const deduped = sorted.filter((row) => {
-    const id = (row as unknown as LocationRow).articles.id;
-    if (seenIds.has(id)) return false;
-    seenIds.add(id);
+    if (seenIds.has(row.articles.id)) return false;
+    seenIds.add(row.articles.id);
     return true;
   });
 
   const articles = deduped.map((row) => {
-    const r  = row as unknown as LocationRow;
-    const a  = r.articles;
+    const a  = row.articles;
     return {
       id:       a.id,
       headline: a.title,

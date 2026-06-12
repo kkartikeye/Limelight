@@ -8,7 +8,9 @@ import CityHeatLayer from "./city-heat-layer";
 import ArcLayer from "./arc-layer";
 import Tooltip from "./tooltip";
 import MapLoader from "@/components/ui/map-loader";
+import ViewToggle from "@/components/ui/view-toggle";
 import { useMapStore } from "@/lib/stores/map-store";
+import { useThemeStore } from "@/lib/stores/theme-store";
 import { useWatchlistStore } from "@/lib/stores/watchlist-store";
 import { useScores } from "@/lib/hooks/use-scores";
 import { usePins } from "@/lib/hooks/use-pins";
@@ -24,6 +26,15 @@ const FOG_DAYLIGHT: Parameters<mapboxgl.Map["setFog"]>[0] = {
   "space-color":    "#efeadf",
   "horizon-blend":  0.08,
   "star-intensity": 0,
+};
+
+// ─── Midnight globe fog — paper globe in dark space ─────────────────────────
+const FOG_MIDNIGHT: Parameters<mapboxgl.Map["setFog"]>[0] = {
+  color:            "#2a2620",
+  "high-color":     "#3a3022",
+  "space-color":    "#100e0a",
+  "horizon-blend":  0.06,
+  "star-intensity": 0.25,
 };
 
 const HINT_KEY = "ll:scroll-hint-seen";
@@ -75,7 +86,9 @@ export default function MapView({ onSelectCountry }: MapViewProps) {
   const scoresRef = useRef(scores);
   scoresRef.current = scores;
 
-  const { selectedCountry, selectCountry } = useMapStore();
+  const { selectedCountry, selectCountry, projection, setProjection } = useMapStore();
+  const { theme } = useThemeStore();
+  const dark = theme === "midnight";
   const { watched } = useWatchlistStore();
   const watchedIsos = useMemo(() => watched.map((w) => w.iso), [watched]);
 
@@ -86,12 +99,15 @@ export default function MapView({ onSelectCountry }: MapViewProps) {
     mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
 
     // Restore the camera position the user left the globe at (in-memory, per session)
-    const { viewState: saved, setViewState } = useMapStore.getState();
+    const { viewState: saved, setViewState, projection: savedProjection } = useMapStore.getState();
+    const isDark = useThemeStore.getState().theme === "midnight";
 
     const map = new mapboxgl.Map({
       container: containerRef.current,
-      // Daylight basemap: paper-cream background
-      style: "mapbox://styles/mapbox/light-v11",
+      // Daylight: paper-cream basemap. Midnight: dark basemap.
+      // MapView remounts on theme change (key={theme} in page.tsx), so the
+      // style is fixed for the lifetime of this map instance.
+      style: isDark ? "mapbox://styles/mapbox/dark-v11" : "mapbox://styles/mapbox/light-v11",
       center: [saved.longitude, saved.latitude],
       zoom:   saved.zoom,
       scrollZoom: false,
@@ -109,9 +125,9 @@ export default function MapView({ onSelectCountry }: MapViewProps) {
       setMapLoaded(true);
       setContainerWidth(containerRef.current?.offsetWidth ?? 0);
 
-      // Globe projection + Daylight fog (always globe for now)
-      map.setProjection({ name: "globe" });
-      map.setFog(FOG_DAYLIGHT);
+      // Projection from store (Globe/Flat toggle) + theme fog
+      map.setProjection({ name: savedProjection });
+      map.setFog(isDark ? FOG_MIDNIGHT : FOG_DAYLIGHT);
 
       // ── Hover ────────────────────────────────────────────────────────────
       map.on("mousemove", "heat-fill", (e) => {
@@ -205,6 +221,12 @@ export default function MapView({ onSelectCountry }: MapViewProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── Projection toggle — live switch, no style reload needed ────────────────
+  useEffect(() => {
+    if (!mapLoaded || !mapRef.current) return;
+    mapRef.current.setProjection({ name: projection });
+  }, [projection, mapLoaded]);
+
   return (
     <div className="relative h-full w-full">
       {!mapLoaded && <MapLoader />}
@@ -221,6 +243,7 @@ export default function MapView({ onSelectCountry }: MapViewProps) {
             isLoading={isLoading}
             selectedIso={selectedCountry}
             watchedIsos={watchedIsos}
+            dark={dark}
           />
           {/* Arc layer sits between heat fill and city circles */}
           <ArcLayer map={mapRef.current} arcsGeoJson={arcsGeoJson} />
@@ -281,7 +304,13 @@ export default function MapView({ onSelectCountry }: MapViewProps) {
         </div>
       )}
 
-      {/* Projection toggle: deferred — globe only for now */}
+      {/* Projection toggle — top-right of the map (legend sits right-mid) */}
+      <div
+        className="desktop-only"
+        style={{ position: "absolute", top: 16, right: 16, zIndex: 10 }}
+      >
+        <ViewToggle value={projection} onChange={setProjection} />
+      </div>
     </div>
   );
 }

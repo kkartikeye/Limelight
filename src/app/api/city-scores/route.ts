@@ -39,19 +39,6 @@ export async function GET(req: NextRequest) {
   }
 
   // ── JS-side aggregation grouped by (city_name, country_code) ─────────────────
-  type ArticleRow = {
-    id: string;
-    published_at: string;
-    category: string | null;
-    sources: { credibility: number } | null;
-  };
-  type LocationRow = {
-    city_name: string;
-    country_code: string;
-    latitude: number;
-    longitude: number;
-    articles: ArticleRow;
-  };
 
   const cityMap = new Map<string, {
     city: string; country: string;
@@ -62,7 +49,7 @@ export async function GET(req: NextRequest) {
 
   const now = Date.now();
 
-  for (const row of (data ?? []) as unknown as LocationRow[]) {
+  for (const row of data ?? []) {
     const key = `${row.city_name}|${row.country_code}`;
     const credibility = row.articles.sources?.credibility ?? 0.7;
     const hoursOld = (now - new Date(row.articles.published_at).getTime()) / 3_600_000;

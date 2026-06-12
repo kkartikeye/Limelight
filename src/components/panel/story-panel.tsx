@@ -84,6 +84,23 @@ function HeadlineRow({
           <span style={{ marginLeft: "auto", fontFamily: DL.MONO, fontSize: 10 }}>
             {timeAgo}
           </span>
+          {/* Direct-to-source shortcut — the headline itself opens the internal
+              reader; this skips straight to the publisher */}
+          <a
+            href={article.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            title={`Read at ${article.source}`}
+            aria-label={`Read at ${article.source}`}
+            style={{ color: DL.DIM_2, display: "inline-flex", padding: 2, transition: "color 0.1s" }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = DL.CORAL)}
+            onMouseLeave={(e) => (e.currentTarget.style.color = DL.DIM_2)}
+          >
+            <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6.5 3.5h-3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1v-3" />
+              <path d="M9.5 2.5h4v4M13.5 2.5L7.5 8.5" />
+            </svg>
+          </a>
         </div>
       </div>
     </div>
@@ -123,9 +140,9 @@ export default function StoryPanel({ countryCode, countryName, score, onClose, i
     [articles]
   );
 
-  const chipBg    = score >= 70 ? DL.CORAL_50 : "#f0ede7";
+  const chipBg    = score >= 70 ? DL.CORAL_50 : DL.CHIP;
   const chipColor = score >= 70 ? DL.CORAL    : DL.DIM;
-  const chipBd    = score >= 70 ? DL.CORAL_BD : "rgba(24,22,19,0.10)";
+  const chipBd    = score >= 70 ? DL.CORAL_BD : DL.RULE;
 
   return (
     <div style={{

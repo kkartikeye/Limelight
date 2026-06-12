@@ -6,6 +6,7 @@ import Header from "@/components/ui/header";
 import BottomTabBar from "@/components/ui/bottom-tab-bar";
 import { DL } from "@/lib/design-tokens";
 import { ALL_CATEGORIES } from "@/lib/stores/map-store";
+import CategoryIcon from "@/components/ui/category-icon";
 
 interface TrendingResponse {
   trending: { query: string; count: number }[];
@@ -14,15 +15,15 @@ interface TrendingResponse {
 const fetcher = (url: string) => fetch(url).then((r) => r.json());
 
 // Category descriptions shown on the card
-const CAT_META: Record<string, { desc: string; icon: string }> = {
-  Conflict:      { icon: "⚡", desc: "Armed conflict, military operations, warfare" },
-  Politics:      { icon: "🏛", desc: "Government, elections, diplomacy, policy" },
-  Humanitarian:  { icon: "🤝", desc: "Aid, refugees, human rights, crises" },
-  Economics:     { icon: "📈", desc: "Markets, trade, sanctions, development" },
-  Technology:    { icon: "💡", desc: "AI, cyber, space, innovation" },
-  Environment:   { icon: "🌍", desc: "Climate, energy, disasters, conservation" },
-  Sports:        { icon: "🏆", desc: "International sports and major tournaments" },
-  Entertainment: { icon: "🎬", desc: "Culture, film, music, global media" },
+const CAT_META: Record<string, { desc: string }> = {
+  Conflict:      { desc: "Armed conflict, military operations, warfare" },
+  Politics:      { desc: "Government, elections, diplomacy, policy" },
+  Humanitarian:  { desc: "Aid, refugees, human rights, crises" },
+  Economics:     { desc: "Markets, trade, sanctions, development" },
+  Technology:    { desc: "AI, cyber, space, innovation" },
+  Environment:   { desc: "Climate, energy, disasters, conservation" },
+  Sports:        { desc: "International sports and major tournaments" },
+  Entertainment: { desc: "Culture, film, music, global media" },
 };
 
 export default function TopicsPage() {
@@ -111,7 +112,7 @@ export default function TopicsPage() {
             gap: 14,
           }}>
             {ALL_CATEGORIES.map((cat) => {
-              const meta = CAT_META[cat] ?? { icon: "📰", desc: "" };
+              const meta = CAT_META[cat] ?? { desc: "" };
               return (
                 <Link
                   key={cat}
@@ -134,7 +135,7 @@ export default function TopicsPage() {
                     e.currentTarget.style.boxShadow = "none";
                   }}
                 >
-                  <div style={{ fontSize: 22, marginBottom: 8 }}>{meta.icon}</div>
+                  <div style={{ marginBottom: 10, color: DL.CORAL }}><CategoryIcon category={cat} size={22} strokeWidth={1.1} /></div>
                   <div style={{
                     fontFamily: DL.DISPLAY, fontSize: 20, fontWeight: 500,
                     letterSpacing: -0.3, color: DL.INK, marginBottom: 6,

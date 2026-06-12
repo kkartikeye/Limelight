@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import DLLogo from "./dl-logo";
@@ -8,7 +8,47 @@ import { useWatchlistStore } from "@/lib/stores/watchlist-store";
 import { DL } from "@/lib/design-tokens";
 import { useUser } from "@/lib/hooks/use-user";
 import { useWatchlistSync } from "@/lib/hooks/use-watchlist-sync";
+import { useThemeStore } from "@/lib/stores/theme-store";
 import AuthModal from "./auth-modal";
+
+function ThemeToggle({ size = 14 }: { size?: number }) {
+  const { theme, toggleTheme } = useThemeStore();
+  // The server always renders Daylight (no localStorage), so the first client
+  // render must match it — swap to the real icon only after mount.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const midnight = mounted && theme === "midnight";
+  return (
+    <button
+      onClick={toggleTheme}
+      aria-label={midnight ? "Switch to Daylight theme" : "Switch to Midnight theme"}
+      title={midnight ? "Daylight" : "Midnight"}
+      style={{
+        background: "none", border: "none", cursor: "pointer",
+        color: DL.DIM, padding: 4, display: "flex", borderRadius: 8,
+        transition: "color 0.12s",
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.color = DL.INK)}
+      onMouseLeave={(e) => (e.currentTarget.style.color = DL.DIM)}
+    >
+      {midnight ? (
+        /* Sun — shown in Midnight, click returns to Daylight */
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+          <circle cx="12" cy="12" r="4.2" />
+          <line x1="12" y1="2.5" x2="12" y2="5" /><line x1="12" y1="19" x2="12" y2="21.5" />
+          <line x1="2.5" y1="12" x2="5" y2="12" /><line x1="19" y1="12" x2="21.5" y2="12" />
+          <line x1="5.3" y1="5.3" x2="7" y2="7" /><line x1="17" y1="17" x2="18.7" y2="18.7" />
+          <line x1="5.3" y1="18.7" x2="7" y2="17" /><line x1="17" y1="7" x2="18.7" y2="5.3" />
+        </svg>
+      ) : (
+        /* Moon — shown in Daylight */
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11Z" />
+        </svg>
+      )}
+    </button>
+  );
+}
 
 const NAV_ITEMS = ["Today", "Regions", "Topics", "Saved"] as const;
 type NavItem = (typeof NAV_ITEMS)[number];
@@ -202,6 +242,9 @@ export default function Header({ active = "Today" }: HeaderProps) {
         {/* Clock */}
         <span className="header-clock"><LiveClock /></span>
 
+        {/* Theme toggle */}
+        <ThemeToggle />
+
         {/* Auth button */}
         {user ? (
           /* Avatar / user menu */
@@ -270,8 +313,9 @@ export default function Header({ active = "Today" }: HeaderProps) {
       </div>
       {authOpen && <AuthModal onClose={() => setAuthOpen(false)} />}
 
-      {/* Mobile: search + auth */}
+      {/* Mobile: theme + search + auth */}
       <div className="mobile-only" style={{ alignItems: "center", gap: 8 }}>
+        <ThemeToggle size={17} />
         <button
           aria-label="Search"
           onClick={() => router.push("/search")}

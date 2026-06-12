@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import type { PinsGeoJson, PinProperties } from "@/lib/hooks/use-pins";
-import { DL } from "@/lib/design-tokens";
+import { CORAL_HEX } from "@/lib/design-tokens";
 
 // ─── Daylight coral ramp for clusters ─────────────────────────────────────────
 const CLUSTER_COLOR: mapboxgl.Expression = [
@@ -80,7 +80,7 @@ export default function PinLayer({ map, pinsGeoJson }: PinLayerProps) {
       source: "pins",
       filter: ["!", ["has", "point_count"]],
       paint: {
-        "circle-color":          DL.CORAL,            // single accent — no per-category palette
+        "circle-color":          CORAL_HEX,           // single accent — no per-category palette (GL paint needs raw hex)
         "circle-radius":         ["interpolate", ["linear"], ["zoom"], 6, 4.5, 10, 7],
         "circle-opacity":        ["interpolate", ["linear"], ["zoom"], 5, 0, 6, 0.88],
         "circle-stroke-width":   1.5,

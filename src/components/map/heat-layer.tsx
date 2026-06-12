@@ -11,6 +11,8 @@ interface HeatLayerProps {
   isLoading: boolean;
   selectedIso?: string | null;
   watchedIsos?: string[];
+  /** Midnight theme — basemap is dark-v11, so skip the Daylight label restyle */
+  dark?: boolean;
 }
 
 const SOURCE_ID    = "country-boundaries";
@@ -56,7 +58,7 @@ const ALL_LAYER_IDS = [
 ];
 
 export default function HeatLayer({
-  map, scores, isLoading, selectedIso, watchedIsos = [],
+  map, scores, isLoading, selectedIso, watchedIsos = [], dark = false,
 }: HeatLayerProps) {
   const scoresRef = useRef<ScoresMap | null>(null);
   scoresRef.current = scores;
@@ -160,8 +162,8 @@ export default function HeatLayer({
     //    (a custom symbol layer on the boundaries source labels every polygon
     //    feature — every island gets its own callout).
     if (map.getLayer("country-label")) {
-      map.setPaintProperty("country-label", "text-color", "#3a2a1a");
-      map.setPaintProperty("country-label", "text-halo-color", "rgba(246,243,236,0.85)");
+      map.setPaintProperty("country-label", "text-color", dark ? "#e8e2d4" : "#3a2a1a");
+      map.setPaintProperty("country-label", "text-halo-color", dark ? "rgba(22,20,15,0.85)" : "rgba(246,243,236,0.85)");
       map.setPaintProperty("country-label", "text-halo-width", 1.2);
     }
 
@@ -192,7 +194,8 @@ export default function HeatLayer({
         if (map.getSource(SOURCE_ID)) map.removeSource(SOURCE_ID);
       } catch { /* map torn down (HMR) */ }
     };
-  }, [map]);
+    // `dark` is stable per map instance — MapView remounts on theme change
+  }, [map, dark]);
 
   // ── Re-apply feature states when scores change ────────────────────────────
   useEffect(() => {

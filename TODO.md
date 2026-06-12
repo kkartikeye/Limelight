@@ -1,156 +1,73 @@
 # Limelight — Improvement Backlog
 
-Updated 2026-05-26. Items marked ✅ are complete. Remaining work is ordered by priority within each section.
+Updated 2026-06-12. Items marked ✅ are complete. Phases 1–9 are shipped; this
+file now tracks the few remaining open items and the historical phase record.
 
 ---
 
-## ✅ Completed (this sprint)
+## 🔧 Open items
 
-| Item | Commit |
-|---|---|
-| Delete 4 dead files | `ff7bdc1` |
-| Extract `relativeTime` / `relativeTimeSince` to `src/lib/utils/time.ts` | `ff7bdc1` |
-| Remove dead `hoverCountry` / `setHover` from map-store | `ff7bdc1` |
-| Bump vercel.json cron to hourly | `ff7bdc1` |
-| `src/lib/utils/countries.ts` ISO3→name, wired into all pages | `3a8ed26` |
-| `/article/[id]` routing in StoryPanel; article metadata as URL fallback params | `3a8ed26` |
-| `use-articles` limit bumped to 30 | `3a8ed26` |
-| `/saved` watchlist page | `3a8ed26` |
-| `/regions` and `/topics` stub pages | `3a8ed26` |
-| Article reader: fix API route (wrong columns), fallback from URL params | `5cbdc4f` |
-| Country name: dynamic font size in StoryPanel, isoToName on auto-select | `5cbdc4f` |
-| Globe as centrepiece: hero text moved to map overlay | `5cbdc4f` |
-| Intensity legend: vertical frosted glass, repositioned to right-mid | `5cbdc4f` |
-| Fix Next.js 14 params error (`use()` on plain objects) | `8b5ab47` |
-| `pin-layer.tsx` full Daylight palette rewrite | `98978f8` |
-| Filter-bar: `flexWrap: wrap`, shorter category labels | `98978f8` |
-| Supabase join filter: restructure `/api/articles` + `/api/pins` | `98978f8` |
+### 1. Provision push alerts (one-time, manual)
+Run `docs/migration_phase9_push.sql` in the Supabase SQL editor, then add the
+three VAPID env vars from `.env.local` (`NEXT_PUBLIC_VAPID_PUBLIC_KEY`,
+`VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`) to Vercel. Until then the alerts UI on
+/saved returns a graceful 503 and ingestion skips dispatch.
 
----
+### 2. Claude article summaries — blocked
+GDELT provides no article bodies and no `ANTHROPIC_API_KEY` is configured.
+Becomes viable once a body-providing source (NewsAPI/MediaStack) is added.
+Guardian trailText snippets cover the gap meanwhile.
 
-## 🔧 Remaining functional issues
+### 3. NER geo-tagging upgrade — deferred
+Needs a Python microservice (spaCy + Mordecai3) or per-article LLM calls.
+The regex gazetteer in the ingest route (~190 countries + 100 cities) holds.
 
-### 1. Ocean click clears selection unexpectedly
-Clicking empty ocean calls `clearSelection()` and snaps back to the auto-selected top country. Misclicks near small island nations are jarring.
+### 4. Stripe / Pro tier — deferred
+Charging requires Vercel Pro ($20/mo; Hobby bans commercial use). Revisit when
+Mapbox/Vercel/Supabase free ceilings are in sight.
 
-**Fix**: only clear on an explicit close/back action (the × button or Escape), not on any ocean click.
-
-### 2. StoryPanel auto-selection has no label
-When no country is explicitly clicked, the panel silently shows the highest-scored country. Users can't distinguish auto-select from their own selection.
-
-**Fix**: add a small eyebrow ("Trending now" or "Most coverage today") above the country name when `!isPanelOpen`.
-
-### 3. Scroll-zoom has no discovery hint
-Scroll zoom is disabled until the first click. New users may not discover it.
-
-**Fix**: show a subtle one-time tooltip on first hover: "Click map to enable scroll zoom".
+### 5. Admin-1 sub-national regions layer — deferred
+Bigger GIS lift (Natural Earth admin-1 source swap at zoom ≥ 5), low priority
+without user demand. City-level heat already covers the zoom-in story.
 
 ---
 
-## ⚡ UX / design improvements
+## 🗓️ Phase record
 
-### 1. ✅ `/regions` and `/topics` pages — real content
-Done — Regions ranks top-5 countries per world region with live scores + skeletons; Topics shows category cards + trending searches.
+| Phase | Scope | Status |
+|---|---|---|
+| 1 — Map foundation | Globe, heat layer, mock data, Daylight design | ✅ |
+| 2 — Live data | Supabase, GDELT ingestion, scoring engine, cron | ✅ |
+| 3 — Live UX | 90s auto-refresh, watchlist, city pin clusters | ✅ |
+| 4 — Search & discovery | FTS search, results page, trending searches | ✅ |
+| 5 — Auth & personalisation | Magic-link auth, server watchlist, reading history | ✅ |
+| 6 — Sub-country granularity | City heat circles, cross-border arcs, region pages | ✅ |
+| 7 — Data quality | Guardian + GDELT, fuzzy dedup, credibility registry, snippets | ✅ |
+| 8 — Distribution (free tier) | Retention pruning, public API, embeds, edge caching | ✅ |
+| 9 — Polish & engagement | See below | ✅ |
 
-### 2. ✅ Article reader — richer content
-Done — "More from {country}" related-articles sidebar, credibility tier badge in the byline, source favicon avatar, country Explore link.
+### Phase 9 (2026-06-12) — Polish & engagement batch
 
-### 3. ✅ Country page — hero article link routing
-Done — hero headline routes through `/article/[id]` with metadata fallback params (same scheme as StoryPanel).
-
-### 4. ✅ `/saved` page — live pulse on active countries
-Done — pulsing coral dot next to the ISO eyebrow when score > 60.
+| Feature | Detail |
+|---|---|
+| **Midnight dark mode** | ✅ DL tokens converted to CSS variables (`globals.css`); `data-theme="midnight"` flips every inline style. Header sun/moon toggle, localStorage persistence, pre-paint init script (no flash). Map remounts with dark-v11 basemap + midnight fog. |
+| **Globe/Flat toggle** | ✅ Re-enabled — `ViewToggle` overlays the map top-right, wired to `map-store` projection, live `setProjection` switch. |
+| **Category icons** | ✅ `category-icon.tsx` — 8 line glyphs (sabres, heart, columns, chart, chip, leaf, ball, clapper) in the filter bar + Topics cards (replaced emoji). |
+| **PWA** | ✅ `app/manifest.ts`, generated icons (192/512), `public/sw.js` (SWR for static assets, network-first navigation, `offline.html` fallback), prod-only registration. |
+| **Direct-to-source links** | ✅ Decision: keep the internal reader as the primary click; StoryPanel headline rows get an ↗ shortcut straight to the publisher. |
+| **Typed Supabase client** | ✅ `src/lib/types/database.ts` hand-generated from the live PostgREST OpenAPI schema (CLI auth unavailable); all three clients typed; every `as unknown as Row` cast in API routes removed — joins now infer. |
+| **For You feed** | ✅ `/api/feed` — watchlist countries ranked by credibility × recency decay; signed-in users get read-history exclusion. Rendered on /saved below the watchlist grid. |
+| **Push alerts** | ✅ web-push (VAPID) + `push_subscriptions` table (`docs/migration_phase9_push.sql`); threshold prefs UI on /saved; dispatch hooked into the scoring run with 6h cooldown and dead-endpoint pruning. **Needs the one-time provisioning above.** |
 
 ---
 
-## 🏗️ Architecture improvements
+## Resolved earlier (kept for the record)
 
-### 1. Supabase RLS & server-side API keys
-Currently using the anon key for all Supabase calls from API routes. Production should use the service-role key server-side (never exposed to the client).
-
-### 2. Error boundaries
-No React error boundaries anywhere. A failed Supabase call in `useScores` silently shows mock data. Add an `<ErrorBoundary>` at the page level and a toast notification for API failures.
-
-### 3. ✅ SWR or React Query
-Done for `useArticles`, `usePins`, `useArcs`, `useCityScores`, `useReads`. `useScores` deliberately stays manual — its 90s countdown ticker, lastUpdated diffing, and visibility-resume logic don't map onto SWR.
-
-### 4. Typed Supabase client
-Generate types from the DB schema (`supabase gen types typescript`) and replace all `as unknown as Row` casts with the generated types. Eliminates runtime cast errors. (Needs Supabase CLI auth — run locally.)
-
-### 5. ✅ Image optimisation for source favicons
-Done — `SourceFavicon` component (DuckDuckGo favicon API via `<Image unoptimized>`, initials fallback) used in the article reader byline and country page rows.
-
----
-
-## 🗓️ Phase 4 and beyond
-
-### Phase 4 — Search & Discovery
-
-**Goal**: users can find articles by keyword, not just by country.
-
-| Feature | Description |
-|---|---|
-| **Global search** | Full-text search across `articles.title` + `articles.body_summary`. Supabase supports `fts` (tsvector) natively. Add a `search_vector` column to `articles`, trigger to populate it, and a `/api/search?q=` endpoint. Wire the mobile search icon in the header. |
-| **Search results page** | `/search?q=ukraine+drone` → ranked list of articles grouped by country. Click article → reader. Click country chip → country page. |
-| **Keyword alert subscriptions** | Users save search terms. When new articles matching a term ingest, send a push notification (Web Push API) or email (Resend). Requires auth (Phase 5). |
-| **Trending searches** | Track search frequency in a `search_log` table. Surface top-5 trending terms on the Topics page. |
-
-### Phase 5 — Auth & Personalisation
-
-**Goal**: persistent identity, cross-device watchlists, personalised feed.
-
-| Feature | Description |
-|---|---|
-| **Auth** | Supabase Auth (magic link + Google OAuth). No passwords. Session via `@supabase/ssr`. |
-| **Server-side watchlist** | Move `useWatchlistStore` from localStorage to a `user_watchlists` Supabase table. Sync on login. |
-| **Personalised "For You" feed** | Weight articles by watchlist countries + category preferences. Separate feed on the "Today" page below the map. |
-| **Reading history** | Track article views in `article_reads` (user_id, article_id, ts). Power "already read" dimming on headlines. |
-| **Notification preferences** | Per-user settings: email digest frequency, push alert threshold (e.g. only alert when intensity > 80). |
-
-### Phase 6 — Sub-country granularity
-
-**Goal**: zoom in to city/region level.
-
-| Feature | Description |
-|---|---|
-| **Admin-1 regions layer** | At zoom ≥ 5, swap the country GeoJSON source for a Natural Earth admin-1 regions source. Architecture already supports it (`mergeGeoJsonWithScores` is source-agnostic). |
-| **City-level heat** | Aggregate `article_locations.city_name` scores into a `city_scores` table (same pipeline as `region_scores`). Render as a circle layer at zoom ≥ 6, sized by intensity. |
-| **Region detail page** | `/region/[id]` — mirrors `/country/[iso]` but scoped to a sub-national region. |
-| **Cross-border stories** | Articles tagged to multiple locations show a connection arc (Mapbox `line` layer between centroids). |
-
-### Phase 7 — Data quality & ingestion
-
-**Goal**: richer, more accurate coverage.
-
-| Feature | Status |
-|---|---|
-| **Multi-source ingestion** | ✅ Guardian Content API ingested alongside GDELT (`src/lib/ingest/guardian.ts`; set `GUARDIAN_API_KEY` in prod — falls back to the public `test` key). MediaStack/NewsAPI deferred (paid keys). |
-| **Deduplication pipeline** | ✅ Fuzzy title dedup (token-set Jaccard ≥ 0.7) drops cross-source reprints in-batch and vs. the last 24 h (`src/lib/ingest/similarity.ts`). BullMQ/Redis queue not needed at current volume — revisit at >5k articles/day. |
-| **Source credibility scoring** | ✅ Curated ~80-domain registry (`src/lib/ingest/credibility.ts`) replaces the flat 0.5 for new sources; `POST /api/ingest?credibility=true` backfills existing rows. NewsGuard/AllSides APIs deferred (paid/no API). |
-| **Article snippets** | ✅ Guardian trailText stored in `articles.body_snippet`, served via `/api/articles` and shown on the country page. |
-| **Body summary extraction (Claude)** | Deferred — GDELT provides no article bodies to summarise and no `ANTHROPIC_API_KEY` is configured. Becomes viable once a body-providing source (NewsAPI/MediaStack) is added. |
-| **NER geo-tagging** | Deferred — needs a Python microservice (spaCy + Mordecai3) or per-article LLM calls; regex gazetteer in the ingest route covers ~190 countries + 100 cities meanwhile. |
-
-### Phase 8 — Distribution & Scale (free-tier strategy)
-
-Decision (2026-06-11): stay on free tiers. Monetisation deferred — charging
-requires Vercel Pro ($20/mo, Hobby bans commercial use) and isn't rational
-before there's traffic. Phase 8 = distribution features instead.
-
-| Feature | Status |
-|---|---|
-| **Retention pruning** | ✅ Articles pruned at 60 days (Supabase 500 MB free-tier survival); `region_scores` kept 365 days so score history outlives raw articles. |
-| **Public API** | ✅ `GET /api/v1/scores?key=ll_…&window=24h` — derived scores only (no article content → no upstream licensing issues). Keys minted via `POST /api/v1/keys` (owner secret), daily rate limits in Supabase. **Requires `docs/migration_phase8_api.sql` run in the Supabase SQL editor.** |
-| **Embeds** | ✅ `/embed?window=24h` — dependency-light SVG choropleth (d3-geo + vendored Natural Earth GeoJSON, no Mapbox/tiles, zero quota exposure). Iframe snippet in the page header comment. |
-| **CDN & edge caching** | ✅ Already covered: `s-maxage` on `/api/heatmap`, `/api/articles`, `/api/v1/scores`. Edge Config/R2 unnecessary at this scale. |
-| **Pro tier (Stripe)** | Deferred until usage justifies paid hosting. Revisit when Mapbox/Vercel/Supabase free ceilings are in sight. |
-
----
-
-## Deferred polish (project-end)
-
-- Re-enable globe / flat-earth `ViewToggle` (`view-toggle.tsx` + `map-store` projection state already in place)
-- Real category iconography (SVG icons per category, replacing text labels)
-- **Direct-to-source headline links**: decide whether StoryPanel headlines should skip the internal reader. Current flow: headline → `/article/[id]` → "Read at source" CTA. Revisit once the reader page has more content. (See `story-panel.tsx` `HeadlineRow`)
-- Dark mode / night theme (Limelight Midnight palette — inverse of Daylight)
-- Offline support / PWA manifest
+- Ocean-click no longer clears selection (× / Escape only) ✅
+- "Trending now" eyebrow distinguishes auto-selection ✅
+- Scroll-zoom discovery hint (one-time tooltip) ✅
+- Error boundaries (`app/error.tsx`, `app/global-error.tsx`) + skeleton loaders ✅
+- SWR for `useArticles`/`usePins`/`useArcs`/`useCityScores`/`useReads`
+  (`useScores` deliberately manual — countdown ticker + visibility-resume) ✅
+- Source favicons (`SourceFavicon`, DuckDuckGo API + initials fallback) ✅
+- Supabase service-role key server-side everywhere ✅

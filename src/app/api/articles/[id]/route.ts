@@ -23,17 +23,9 @@ export async function GET(
     return NextResponse.json({ error: "Article not found" }, { status: 404 });
   }
 
-  type Row = {
-    id: string;
-    title: string;
-    url: string;
-    published_at: string;
-    category: string | null;
-    severity: number | null;
-    sources: { name: string; domain: string; credibility: number } | null;
-    article_locations: Array<{ country_code: string; is_primary: boolean }> | null;
-  };
-  const r = data as unknown as Row;
+  // Typed client (Database in src/lib/types/database.ts) infers the joined
+  // shape directly — sources is to-one, article_locations is to-many.
+  const r = data;
 
   const locs = Array.isArray(r.article_locations) ? r.article_locations : [];
   const primaryLoc = locs.find((l) => l.is_primary) ?? locs[0] ?? null;
