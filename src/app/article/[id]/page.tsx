@@ -5,10 +5,14 @@ import Link from "next/link";
 import Header from "@/components/ui/header";
 import BottomTabBar from "@/components/ui/bottom-tab-bar";
 import BackPill from "@/components/ui/back-pill";
+import SourceFavicon from "@/components/ui/source-favicon";
 import { useRelativeTime } from "@/lib/hooks/use-relative-time";
+import { useArticles } from "@/lib/hooks/use-articles";
 import { DL } from "@/lib/design-tokens";
+import { ALL_CATEGORIES } from "@/lib/stores/map-store";
 import { countryName } from "@/lib/utils/countries";
 import { useReads } from "@/lib/hooks/use-reads";
+import type { Article } from "@/lib/types/article";
 
 interface ApiArticle {
   id: string;
@@ -33,6 +37,38 @@ interface PageProps {
     h?: string; s?: string; u?: string;
     c?: string; t?: string; cc?: string;
   };
+}
+
+function RelatedRow({ article, countryCode }: { article: Article; countryCode: string }) {
+  const timeAgo = useRelativeTime(article.publishedAt);
+  // Same metadata-fallback params scheme as StoryPanel's HeadlineRow
+  const qs = new URLSearchParams({
+    h: article.headline, s: article.source, u: article.url,
+    c: article.category ?? "Politics", t: article.publishedAt, cc: countryCode,
+  });
+  return (
+    <Link
+      href={`/article/${article.id}?${qs}`}
+      style={{
+        display: "block", padding: "10px 0",
+        borderTop: `1px solid ${DL.RULE_2}`, textDecoration: "none",
+      }}
+    >
+      <span
+        style={{
+          display: "block", fontSize: 12.5, lineHeight: 1.35, fontWeight: 600,
+          color: DL.INK, fontFamily: DL.SANS, transition: "color 0.1s",
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.color = DL.CORAL)}
+        onMouseLeave={(e) => (e.currentTarget.style.color = DL.INK)}
+      >
+        {article.headline}
+      </span>
+      <span style={{ display: "block", marginTop: 4, fontSize: 11, color: DL.DIM, fontFamily: DL.SANS }}>
+        <span style={{ color: DL.INK_2, fontWeight: 600 }}>{article.source}</span> · {timeAgo}
+      </span>
+    </Link>
+  );
 }
 
 export default function ArticlePage({ params, searchParams }: PageProps) {
@@ -90,6 +126,16 @@ export default function ArticlePage({ params, searchParams }: PageProps) {
 
   const displayCountry = article?.countryCode ? countryName(article.countryCode) : null;
   const timeAgo = useRelativeTime(article?.publishedAt ?? "");
+
+  // Related coverage from the same country (sidebar) — skips fetch when no country
+  const { articles: countryArticles } = useArticles(
+    article?.countryCode ?? "", "24h", ALL_CATEGORIES
+  );
+  const related = countryArticles.filter((a) => a.id !== id).slice(0, 4);
+
+  const TIER_LABEL: Record<string, string> = {
+    high: "High credibility", medium: "Med. credibility", low: "Low credibility",
+  };
 
   return (
     <div className="route-fade article-page" style={{ display: "flex", flexDirection: "column", height: "100vh", background: DL.PAPER, overflow: "hidden", fontFamily: DL.SANS }}>
@@ -190,22 +236,23 @@ export default function ArticlePage({ params, searchParams }: PageProps) {
                 borderBottom: `1px solid ${DL.RULE}`,
                 marginBottom: 28,
               }}>
-                <div style={{
-                  width: 32, height: 32, borderRadius: 999,
-                  background: DL.PAPER_2,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontFamily: DL.DISPLAY, fontSize: 12, fontWeight: 500, color: DL.INK_2,
-                  border: `1px solid ${DL.RULE_2}`, flexShrink: 0,
-                }}>
-                  {article.source.slice(0, 2).toUpperCase()}
-                </div>
+                <SourceFavicon domain={article.domain} name={article.source} size={32} />
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 600, color: DL.INK }}>{article.source}</div>
                   <div style={{ fontSize: 11, color: DL.DIM, fontFamily: DL.MONO, letterSpacing: 0.06 }}>
                     {timeAgo}
                   </div>
                 </div>
-                <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{
+                    padding: "3px 9px", borderRadius: 999, fontSize: 11, fontWeight: 600,
+                    fontFamily: DL.SANS,
+                    background: article.credibilityTier === "high" ? "#eaf5ef" : DL.PAPER_2,
+                    color:      article.credibilityTier === "high" ? DL.LIVE   : DL.DIM,
+                    border: `1px solid ${article.credibilityTier === "high" ? "rgba(42,138,94,0.25)" : DL.RULE}`,
+                  }}>
+                    {TIER_LABEL[article.credibilityTier] ?? "Unrated"}
+                  </span>
                   <span style={{
                     padding: "3px 9px", borderRadius: 999, fontSize: 11, fontWeight: 600,
                     background: DL.CORAL_50, color: DL.CORAL, border: `1px solid ${DL.CORAL_BD}`,
@@ -310,6 +357,20 @@ export default function ArticlePage({ params, searchParams }: PageProps) {
                       {article.domain}
                     </a>
                   )}
+                </div>
+              )}
+
+              {article.countryCode && related.length > 0 && (
+                <div>
+                  <div style={{
+                    fontFamily: DL.MONO, fontSize: 10, letterSpacing: 0.12,
+                    textTransform: "uppercase", color: DL.DIM, marginBottom: 4,
+                  }}>
+                    More from {displayCountry}
+                  </div>
+                  {related.map((rel) => (
+                    <RelatedRow key={rel.id} article={rel} countryCode={article.countryCode!} />
+                  ))}
                 </div>
               )}
 

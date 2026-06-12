@@ -49,20 +49,17 @@ Scroll zoom is disabled until the first click. New users may not discover it.
 
 ## ⚡ UX / design improvements
 
-### 1. `/regions` and `/topics` pages — real content
-Currently "coming soon" placeholders. Regions page should group countries by continent with a mini heat indicator per region. Topics page should link to filtered country lists per category.
+### 1. ✅ `/regions` and `/topics` pages — real content
+Done — Regions ranks top-5 countries per world region with live scores + skeletons; Topics shows category cards + trending searches.
 
-### 2. Article reader — richer content
-The reader page currently shows only article metadata and links out. Possible additions:
-- Related articles from the same country (reuse `useArticles`)
-- Mini country intensity chip linking back to `/country/[iso]`
-- Estimated credibility tier badge (already in the data)
+### 2. ✅ Article reader — richer content
+Done — "More from {country}" related-articles sidebar, credibility tier badge in the byline, source favicon avatar, country Explore link.
 
-### 3. Country page — hero article link routing
-The hero article `<a href={heroArticle.url}>` links directly to the source. Should route through `/article/[id]` like the StoryPanel does (consistent internal routing).
+### 3. ✅ Country page — hero article link routing
+Done — hero headline routes through `/article/[id]` with metadata fallback params (same scheme as StoryPanel).
 
-### 4. `/saved` page — live pulse on active countries
-Countries with score > 60 could show a pulsing coral dot next to the card header (same signal as the map halo). Makes the watchlist feel live.
+### 4. ✅ `/saved` page — live pulse on active countries
+Done — pulsing coral dot next to the ISO eyebrow when score > 60.
 
 ---
 
@@ -74,14 +71,14 @@ Currently using the anon key for all Supabase calls from API routes. Production 
 ### 2. Error boundaries
 No React error boundaries anywhere. A failed Supabase call in `useScores` silently shows mock data. Add an `<ErrorBoundary>` at the page level and a toast notification for API failures.
 
-### 3. SWR or React Query
-`useScores`, `useArticles`, `usePins` are all manual `useEffect` + `fetch` + `useState` patterns. Migrating to SWR or React Query would give deduplication, background refresh, cache invalidation, and loading/error states for free.
+### 3. ✅ SWR or React Query
+Done for `useArticles`, `usePins`, `useArcs`, `useCityScores`, `useReads`. `useScores` deliberately stays manual — its 90s countdown ticker, lastUpdated diffing, and visibility-resume logic don't map onto SWR.
 
 ### 4. Typed Supabase client
-Generate types from the DB schema (`supabase gen types typescript`) and replace all `as unknown as Row` casts with the generated types. Eliminates runtime cast errors.
+Generate types from the DB schema (`supabase gen types typescript`) and replace all `as unknown as Row` casts with the generated types. Eliminates runtime cast errors. (Needs Supabase CLI auth — run locally.)
 
-### 5. Image optimisation for source favicons
-Article cards could show source favicons (DuckDuckGo favicon API or direct `https://domain/favicon.ico`). Should use Next.js `<Image>` with `unoptimized` for external URLs.
+### 5. ✅ Image optimisation for source favicons
+Done — `SourceFavicon` component (DuckDuckGo favicon API via `<Image unoptimized>`, initials fallback) used in the article reader byline and country page rows.
 
 ---
 

@@ -5,6 +5,7 @@ import Link from "next/link";
 import Header from "@/components/ui/header";
 import BottomTabBar from "@/components/ui/bottom-tab-bar";
 import BackPill from "@/components/ui/back-pill";
+import SourceFavicon from "@/components/ui/source-favicon";
 import { useScores } from "@/lib/hooks/use-scores";
 import { useArticles } from "@/lib/hooks/use-articles";
 import { useWatchlistStore } from "@/lib/stores/watchlist-store";
@@ -44,7 +45,8 @@ function ArticleRow({ article, summary }: { article: Article; summary?: string }
           {summary}
         </div>
       )}
-      <div style={{ marginTop: 5, fontSize: 11, color: DL.DIM, display: "flex", gap: 8, fontFamily: DL.SANS }}>
+      <div style={{ marginTop: 5, fontSize: 11, color: DL.DIM, display: "flex", gap: 8, alignItems: "center", fontFamily: DL.SANS }}>
+        {article.domain && <SourceFavicon domain={article.domain} name={article.source} size={16} />}
         <span style={{ color: DL.INK_2, fontWeight: 600 }}>{article.source}</span>
         <span>·</span>
         <span>{timeAgo}</span>
@@ -95,6 +97,20 @@ export default function CountryPage({ params, searchParams }: PageProps) {
 
   // Live-updating time for the hero story timestamp
   const heroTime = useRelativeTime(heroArticle?.publishedAt ?? "");
+
+  // Internal reader route with metadata fallback params (same scheme as StoryPanel)
+  const heroHref = useMemo(() => {
+    if (!heroArticle) return "/";
+    const p = new URLSearchParams({
+      h: heroArticle.headline,
+      s: heroArticle.source,
+      u: heroArticle.url,
+      c: heroArticle.category ?? "Politics",
+      t: heroArticle.publishedAt,
+      cc: iso,
+    });
+    return `/article/${heroArticle.id}?${p}`;
+  }, [heroArticle, iso]);
 
   // Memoize source count to avoid recalculating on every render
   const sourceCount = useMemo(
@@ -184,10 +200,8 @@ export default function CountryPage({ params, searchParams }: PageProps) {
                 <span style={{ width: 6, height: 6, borderRadius: 999, background: DL.CORAL, display: "inline-block" }} />
                 Top story · {heroTime}
               </div>
-              <a
-                href={heroArticle.url}
-                target="_blank"
-                rel="noopener noreferrer"
+              <Link
+                href={heroHref}
                 style={{
                   display: "block", fontFamily: DL.DISPLAY, fontSize: 36, fontWeight: 400,
                   letterSpacing: -0.9, lineHeight: 1.05, color: DL.INK, textDecoration: "none",
@@ -196,7 +210,7 @@ export default function CountryPage({ params, searchParams }: PageProps) {
                 onMouseLeave={(e) => (e.currentTarget.style.color = DL.INK)}
               >
                 {heroArticle.headline}
-              </a>
+              </Link>
               <div style={{ marginTop: 14, display: "flex", alignItems: "center", gap: 10, fontSize: 12, color: DL.DIM }}>
                 <span style={{ color: DL.INK_2, fontWeight: 600 }}>{heroArticle.source}</span>
                 <span>·</span>

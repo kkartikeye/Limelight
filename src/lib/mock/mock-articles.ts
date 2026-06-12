@@ -1,6 +1,8 @@
 import type { Article } from "@/lib/types/article";
 
-const now = Date.now();
+// Quantized to a 10-min bucket so server render and client hydration
+// produce identical timestamps (avoids hydration href/text mismatches).
+const now = Math.floor(Date.now() / 600_000) * 600_000;
 const h = (hours: number) => new Date(now - hours * 3600_000).toISOString();
 
 const STORIES: Record<string, Article[]> = {

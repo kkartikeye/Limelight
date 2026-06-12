@@ -22,6 +22,7 @@ function mapApiArticle(a: ApiArticle): Article {
     id: a.id,
     headline: a.headline,
     source: a.source,
+    domain: a.domain,
     credibilityTier: a.credibilityTier,
     category: (a.category as Article["category"]) ?? "Politics",
     publishedAt: a.publishedAt,

@@ -136,8 +136,19 @@ export default function SavedPage() {
                       <div style={{
                         fontFamily: DL.MONO, fontSize: 10, letterSpacing: 0.14,
                         textTransform: "uppercase", color: DL.DIM, marginBottom: 4,
+                        display: "flex", alignItems: "center", gap: 6,
                       }}>
                         {entry.iso}
+                        {score !== null && score > 60 && (
+                          <span
+                            title="High coverage intensity right now"
+                            style={{
+                              width: 6, height: 6, borderRadius: 999,
+                              background: DL.CORAL, display: "inline-block",
+                              animation: "pulse-halo 1.2s ease-in-out infinite alternate",
+                            }}
+                          />
+                        )}
                       </div>
                       <Link
                         href={`/country/${entry.iso}?name=${encodeURIComponent(entry.name)}`}
