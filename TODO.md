@@ -131,14 +131,19 @@ Done — `SourceFavicon` component (DuckDuckGo favicon API via `<Image unoptimiz
 | **Body summary extraction (Claude)** | Deferred — GDELT provides no article bodies to summarise and no `ANTHROPIC_API_KEY` is configured. Becomes viable once a body-providing source (NewsAPI/MediaStack) is added. |
 | **NER geo-tagging** | Deferred — needs a Python microservice (spaCy + Mordecai3) or per-article LLM calls; regex gazetteer in the ingest route covers ~190 countries + 100 cities meanwhile. |
 
-### Phase 8 — Monetisation & Scale
+### Phase 8 — Distribution & Scale (free-tier strategy)
 
-| Feature | Description |
+Decision (2026-06-11): stay on free tiers. Monetisation deferred — charging
+requires Vercel Pro ($20/mo, Hobby bans commercial use) and isn't rational
+before there's traffic. Phase 8 = distribution features instead.
+
+| Feature | Status |
 |---|---|
-| **Pro tier** | Unlimited watchlist countries (free = 5), 30-min refresh (free = hourly), CSV export, API access. Stripe billing. |
-| **Embeds** | `<iframe>` or `<script>` embed for media organisations to put the map widget on their sites. |
-| **Public API** | REST API for developers: `/v1/scores`, `/v1/articles`, `/v1/search`. Rate-limited with API keys. |
-| **CDN & edge caching** | Move `/api/heatmap` response to Vercel Edge Config or R2 so the globe loads instantly. Score data can be 60s stale globally. |
+| **Retention pruning** | ✅ Articles pruned at 60 days (Supabase 500 MB free-tier survival); `region_scores` kept 365 days so score history outlives raw articles. |
+| **Public API** | ✅ `GET /api/v1/scores?key=ll_…&window=24h` — derived scores only (no article content → no upstream licensing issues). Keys minted via `POST /api/v1/keys` (owner secret), daily rate limits in Supabase. **Requires `docs/migration_phase8_api.sql` run in the Supabase SQL editor.** |
+| **Embeds** | ✅ `/embed?window=24h` — dependency-light SVG choropleth (d3-geo + vendored Natural Earth GeoJSON, no Mapbox/tiles, zero quota exposure). Iframe snippet in the page header comment. |
+| **CDN & edge caching** | ✅ Already covered: `s-maxage` on `/api/heatmap`, `/api/articles`, `/api/v1/scores`. Edge Config/R2 unnecessary at this scale. |
+| **Pro tier (Stripe)** | Deferred until usage justifies paid hosting. Revisit when Mapbox/Vercel/Supabase free ceilings are in sight. |
 
 ---
 

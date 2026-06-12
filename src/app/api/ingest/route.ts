@@ -617,11 +617,20 @@ async function computeScores(results: { scored: number; errors: string[] }) {
     else results.scored = scoreRows.length;
   }
 
-  // Prune buckets older than 30 days to keep region_scores bounded
+  // ── Retention pruning (free-tier survival) ───────────────────────────────
+  // Articles: 60-day retention. ~2k inserts/day would blow Supabase's 500 MB
+  // free tier within months if left unbounded; article_locations rows cascade.
+  await supabase
+    .from("articles")
+    .delete()
+    .lt("published_at", new Date(Date.now() - 60 * 24 * 3_600_000).toISOString());
+
+  // region_scores: keep a full year — aggregate rows are tiny, and they
+  // preserve score history long after the raw articles are pruned.
   await supabase
     .from("region_scores")
     .delete()
-    .lt("time_bucket", new Date(Date.now() - 30 * 24 * 3_600_000).toISOString());
+    .lt("time_bucket", new Date(Date.now() - 365 * 24 * 3_600_000).toISOString());
 }
 
 // ─── Core ingestion run ───────────────────────────────────────────────────────
