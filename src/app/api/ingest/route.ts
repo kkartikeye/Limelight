@@ -181,34 +181,6 @@ const COUNTRY_NAME_MAP: [RegExp, string][] = [
   [/\bZimbabwe|Zimbabwean\b|Harare\b/i,                                      "ZWE"],
 ];
 
-// Domain → ISO3 fallback: if the title yields no match, the publisher's country
-// gives a weak signal (confidence 0.4) — better than nothing for domestic outlets.
-const DOMAIN_COUNTRY: Record<string, string> = {
-  "bbc.com": "GBR", "bbc.co.uk": "GBR", "theguardian.com": "GBR",
-  "telegraph.co.uk": "GBR", "thetimes.co.uk": "GBR", "independent.co.uk": "GBR",
-  "nytimes.com": "USA", "washingtonpost.com": "USA", "wsj.com": "USA",
-  "apnews.com": "USA", "reuters.com": "USA", "npr.org": "USA",
-  "cnn.com": "USA", "foxnews.com": "USA", "nbcnews.com": "USA",
-  "yahoo.com": "USA", "usatoday.com": "USA", "politico.com": "USA",
-  "thehill.com": "USA", "axios.com": "USA", "time.com": "USA",
-  "newsweek.com": "USA", "businessinsider.com": "USA", "vox.com": "USA",
-  "huffpost.com": "USA", "buzzfeednews.com": "USA", "slate.com": "USA",
-  "cbsnews.com": "USA", "abcnews.go.com": "USA", "msnbc.com": "USA",
-  "iheart.com": "USA", "iheartradio.com": "USA",
-  "abc.net.au": "AUS", "smh.com.au": "AUS",
-  "lemonde.fr": "FRA", "lefigaro.fr": "FRA",
-  "dw.com": "DEU", "spiegel.de": "DEU",
-  "xinhuanet.com": "CHN", "chinadaily.com.cn": "CHN",
-  "rt.com": "RUS", "tass.ru": "RUS",
-  "aljazeera.com": "QAT",
-  "dawn.com": "PAK", "geo.tv": "PAK",
-  "thehindu.com": "IND", "ndtv.com": "IND", "timesofindia.com": "IND",
-  "haaretz.com": "ISR", "timesofisrael.com": "ISR",
-  "arabnews.com": "SAU",
-  "france24.com": "FRA",
-  "kyivindependent.com": "UKR", "ukraineworld.org": "UKR",
-  "globo.com": "BRA", "folha.uol.com.br": "BRA",
-};
 
 // ─── City coordinates lookup ─────────────────────────────────────────────────
 // Keyed by the city name as it appears in headlines. Each match yields
@@ -329,21 +301,18 @@ interface GeoResult {
   lng?: number;
 }
 
-function extractCountry(title: string, domain?: string): GeoResult | null {
+function extractCountry(title: string): GeoResult | null {
   // Try city lookup first — more specific and carries coordinates
   for (const [pattern, city] of CITY_COORDS) {
     if (pattern.test(title)) {
       return { iso3: city.iso3, confidence: 0.9, cityName: city.city, lat: city.lat, lng: city.lng };
     }
   }
-  // Fall back to country-level regex
+  // Country-level regex. (No publisher-domain fallback: pinning a story with no
+  // place in its title to the outlet's HQ country systematically inflated the
+  // US/UK, where the highest-volume English sources are based.)
   for (const [pattern, iso3] of COUNTRY_NAME_MAP) {
     if (pattern.test(title)) return { iso3, confidence: 0.85 };
-  }
-  if (domain) {
-    const parentDomain = domain.split(".").slice(-2).join(".");
-    const iso3 = DOMAIN_COUNTRY[domain] ?? DOMAIN_COUNTRY[parentDomain];
-    if (iso3) return { iso3, confidence: 0.4 };
   }
   return null;
 }
@@ -352,7 +321,7 @@ function extractCountry(title: string, domain?: string): GeoResult | null {
 // Returns an ordered list: first entry is the primary (most specific), rest are secondary.
 // `countryHint` (ISO-3, supplied by sources that self-tag like NewsData.io) is
 // trusted as the primary location, bypassing the title gazetteer for breadth.
-function extractAllLocations(title: string, domain?: string, countryHint?: string): GeoResult[] {
+function extractAllLocations(title: string, countryHint?: string): GeoResult[] {
   const results: GeoResult[] = [];
   const seenIsos = new Set<string>();
 
@@ -378,15 +347,9 @@ function extractAllLocations(title: string, domain?: string, countryHint?: strin
     }
   }
 
-  // Domain fallback adds a secondary location only if nothing else matched
-  if (results.length === 0 && domain) {
-    const parentDomain = domain.split(".").slice(-2).join(".");
-    const iso3 = DOMAIN_COUNTRY[domain] ?? DOMAIN_COUNTRY[parentDomain];
-    if (iso3 && !seenIsos.has(iso3)) {
-      results.push({ iso3, confidence: 0.4 });
-    }
-  }
-
+  // No publisher-domain fallback: an article whose title names no place is left
+  // un-geotagged rather than pinned to the outlet's HQ country (that inflated
+  // the US/UK). NewsData.io's self-tagged countryHint covers most of the gap.
   return results;
 }
 
@@ -538,7 +501,7 @@ async function ingestArticles(
     if (!orig) continue;
 
     // Extract primary + all secondary locations for cross-border arc support
-    const allGeos = extractAllLocations(orig.title, orig.domain, orig.countryHint);
+    const allGeos = extractAllLocations(orig.title, orig.countryHint);
     allGeos.forEach((geo, idx) => {
       locationRows.push({
         article_id: inserted.id as string,
@@ -665,7 +628,10 @@ async function runIngestion(gdeltQuery = "sourcelang:english", timespan = "2h"):
   // NewsData/GNews no-op (return []) when their API key isn't set.
   const [newsdata, guardian, gnews, gdelt] = await Promise.all([
     fetchNewsData(GDELT_TIMEOUT_MS),
-    fetchGuardian(GDELT_TIMEOUT_MS),
+    // 12 (was 30): one UK paper shouldn't out-volume the country-tagged
+    // sources. Guardian still adds snippets + genuinely place-named stories,
+    // but no longer floods the map toward GBR.
+    fetchGuardian(GDELT_TIMEOUT_MS, 12),
     fetchGNews(GDELT_TIMEOUT_MS),
     // 120 broadens country coverage beyond the Guardian's UK/US skew while
     // still returning inside the ~8.5 s GDELT budget (250 reliably times out).
@@ -708,12 +674,11 @@ async function runCredibilityBackfill(): Promise<NextResponse> {
 // ─── One-time backfill (POST /api/ingest?backfill=true) ───────────────────────
 async function runBackfill(): Promise<NextResponse> {
   const { data: allArticles } = await supabase
-    .from("articles").select("id, title, sources(domain)").limit(1000);
+    .from("articles").select("id, title").limit(1000);
 
   let tagged = 0, skipped = 0;
   for (const row of allArticles ?? []) {
-    const domain = ((row.sources as unknown) as { domain: string } | null)?.domain;
-    const geo = extractCountry(row.title as string, domain ?? undefined);
+    const geo = extractCountry(row.title as string);
     if (!geo) { skipped++; continue; }
 
     const { data: existing } = await supabase
