@@ -28,18 +28,44 @@ const ISO2_TO_ISO3: Record<string, string> = {
   au: "AUS", nz: "NZL",
 };
 
-// Full-name aliases for APIs that return names instead of codes (lowercased).
+// Full-name lookup for APIs that return names instead of codes (lowercased).
+// NewsData.io returns names like ["india"], ["united states of america"], so
+// this must cover every country in the set — not just tricky aliases.
 const NAME_TO_ISO3: Record<string, string> = {
-  "united states": "USA", "united states of america": "USA", "usa": "USA",
-  "united kingdom": "GBR", "uk": "GBR", "britain": "GBR", "great britain": "GBR",
-  "south korea": "KOR", "korea, republic of": "KOR",
-  "north korea": "PRK",
-  "russia": "RUS", "russian federation": "RUS",
-  "china": "CHN", "iran": "IRN", "syria": "SYR", "vietnam": "VNM",
-  "united arab emirates": "ARE", "uae": "ARE",
+  // Africa
+  "algeria": "DZA", "angola": "AGO", "cameroon": "CMR",
   "democratic republic of the congo": "COD", "dr congo": "COD", "congo": "COD",
-  "south africa": "ZAF", "saudi arabia": "SAU", "czech republic": "CZE",
-  "turkey": "TUR", "türkiye": "TUR", "taiwan": "TWN",
+  "egypt": "EGY", "ethiopia": "ETH", "ghana": "GHA", "kenya": "KEN",
+  "libya": "LBY", "morocco": "MAR", "mozambique": "MOZ", "nigeria": "NGA",
+  "somalia": "SOM", "south africa": "ZAF", "sudan": "SDN", "south sudan": "SSD",
+  "tanzania": "TZA", "tunisia": "TUN", "uganda": "UGA", "zimbabwe": "ZWE",
+  // Americas
+  "argentina": "ARG", "brazil": "BRA", "canada": "CAN", "chile": "CHL",
+  "colombia": "COL", "cuba": "CUB", "mexico": "MEX", "peru": "PER",
+  "united states": "USA", "united states of america": "USA", "usa": "USA",
+  "venezuela": "VEN",
+  // Asia / Middle East
+  "afghanistan": "AFG", "bangladesh": "BGD", "china": "CHN", "india": "IND",
+  "indonesia": "IDN", "iran": "IRN", "iraq": "IRQ", "israel": "ISR",
+  "japan": "JPN", "jordan": "JOR", "kazakhstan": "KAZ",
+  "north korea": "PRK", "south korea": "KOR", "korea, republic of": "KOR",
+  "kuwait": "KWT", "lebanon": "LBN", "malaysia": "MYS", "myanmar": "MMR",
+  "nepal": "NPL", "pakistan": "PAK", "philippines": "PHL", "qatar": "QAT",
+  "saudi arabia": "SAU", "singapore": "SGP", "syria": "SYR", "taiwan": "TWN",
+  "thailand": "THA", "turkey": "TUR", "türkiye": "TUR",
+  "united arab emirates": "ARE", "uae": "ARE", "uzbekistan": "UZB",
+  "vietnam": "VNM", "yemen": "YEM",
+  // Europe
+  "austria": "AUT", "belarus": "BLR", "belgium": "BEL", "denmark": "DNK",
+  "finland": "FIN", "france": "FRA", "germany": "DEU", "greece": "GRC",
+  "hungary": "HUN", "ireland": "IRL", "italy": "ITA", "netherlands": "NLD",
+  "norway": "NOR", "poland": "POL", "portugal": "PRT", "romania": "ROU",
+  "russia": "RUS", "russian federation": "RUS", "serbia": "SRB",
+  "slovakia": "SVK", "spain": "ESP", "sweden": "SWE", "switzerland": "CHE",
+  "ukraine": "UKR",
+  "united kingdom": "GBR", "uk": "GBR", "britain": "GBR", "great britain": "GBR",
+  // Oceania
+  "australia": "AUS", "new zealand": "NZL",
 };
 
 /**
