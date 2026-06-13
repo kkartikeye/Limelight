@@ -409,9 +409,11 @@ function detectCategory(title: string): string {
 }
 
 // ─── GDELT fetch ──────────────────────────────────────────────────────────────
-// On Vercel (VERCEL_ENV is set) keep under the 10 s wall with a 6 s abort.
+// GDELT's artlist endpoint is slow (5–10 s) and aggressively rate-limited (429).
+// On Vercel (VERCEL_ENV is set) push the abort as close to the 10 s Hobby wall
+// as we safely can so a slow-but-successful GDELT response still lands.
 // Locally (npm run dev) or in GitHub Actions jobs, allow 25 s.
-const GDELT_TIMEOUT_MS = process.env.VERCEL_ENV ? 6_000 : 25_000;
+const GDELT_TIMEOUT_MS = process.env.VERCEL_ENV ? 8_500 : 25_000;
 
 async function fetchGdelt(query: string, timespan = "2h", maxrecords = 50): Promise<GdeltArticle[]> {
   const params = new URLSearchParams({
@@ -648,9 +650,9 @@ async function runIngestion(gdeltQuery = "sourcelang:english", timespan = "2h"):
   // records (trailText snippets) win when fuzzy dedup drops GDELT reprints.
   const [guardian, gdelt] = await Promise.all([
     fetchGuardian(GDELT_TIMEOUT_MS),
-    // 250 is GDELT's per-call max — broadens country coverage beyond the
-    // Guardian's UK/US skew so more of the map carries real data.
-    fetchGdelt(gdeltQuery, timespan, 250),
+    // 120 broadens country coverage beyond the Guardian's UK/US skew while
+    // still returning inside the ~8.5 s GDELT budget (250 reliably times out).
+    fetchGdelt(gdeltQuery, timespan, 120),
   ]);
   results.fetchedBySource = { guardian: guardian.length, gdelt: gdelt.length };
   const articles: NormalisedArticle[] = [...guardian, ...gdelt];
