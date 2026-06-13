@@ -18,17 +18,6 @@ interface HeaderProps {
   active?: NavItem;
 }
 
-function LiveClock() {
-  const now = new Date();
-  const day  = now.toLocaleDateString("en-GB", { weekday: "short" });
-  const time = now.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-  return (
-    <span className="font-plex text-[11px] tracking-[0.10em] text-dim">
-      {day} · {time} GMT
-    </span>
-  );
-}
-
 export default function Header({ active = "Today" }: HeaderProps) {
   const router  = useRouter();
   const { watched } = useWatchlistStore();
@@ -200,8 +189,14 @@ export default function Header({ active = "Today" }: HeaderProps) {
         {/* Divider */}
         <div style={{ width: 1, height: 16, background: DL.RULE }} />
 
-        {/* Clock */}
-        <span className="header-clock"><LiveClock /></span>
+        {/* About — what Limelight is + how intensity is scored */}
+        <Link
+          href="/about"
+          className="header-clock no-underline font-plex"
+          style={{ fontSize: 11, letterSpacing: "0.10em", color: DL.DIM }}
+        >
+          About
+        </Link>
 
         {/* Developers / API docs */}
         <Link

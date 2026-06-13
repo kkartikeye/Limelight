@@ -648,7 +648,9 @@ async function runIngestion(gdeltQuery = "sourcelang:english", timespan = "2h"):
   // records (trailText snippets) win when fuzzy dedup drops GDELT reprints.
   const [guardian, gdelt] = await Promise.all([
     fetchGuardian(GDELT_TIMEOUT_MS),
-    fetchGdelt(gdeltQuery, timespan, 50),
+    // 250 is GDELT's per-call max — broadens country coverage beyond the
+    // Guardian's UK/US skew so more of the map carries real data.
+    fetchGdelt(gdeltQuery, timespan, 250),
   ]);
   results.fetchedBySource = { guardian: guardian.length, gdelt: gdelt.length };
   const articles: NormalisedArticle[] = [...guardian, ...gdelt];

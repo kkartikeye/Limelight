@@ -1,19 +1,8 @@
 import { useEffect, useRef, useState, useMemo } from "react";
-import { mockScores } from "@/lib/mock/mock-scores";
 import { useMapStore, ALL_CATEGORIES } from "@/lib/stores/map-store";
 import type { TopCategory } from "@/lib/types/scores";
 
 const REFRESH_INTERVAL_S = 90;
-
-// Fallback variance for mock data when the API has no scores yet
-function applyFilterVariance(score: number, timeWindow: string, catCount: number): number {
-  const twFactor: Record<string, number> = {
-    "1h": 0.4, "6h": 0.65, "24h": 1.0, "7d": 1.2, "30d": 1.35,
-  };
-  const catCoverage = catCount / ALL_CATEGORIES.length;
-  const raw = score * (twFactor[timeWindow] ?? 1) * (0.5 + catCoverage * 0.5);
-  return Math.min(100, Math.max(0, Math.round(raw)));
-}
 
 export interface ScoreEntry {
   score: number;
@@ -143,31 +132,17 @@ export function useScores(): ScoresResult {
     return () => clearInterval(ticker);
   }, []);
 
-  // ── Build the final scores map (API → ScoresMap, with mock fallback) ────────
-  const usingMock = !apiScores || Object.keys(apiScores).length === 0;
-
+  // ── Build the final scores map — real API data only, no mock fallback ───────
   const scores = useMemo<ScoresMap | null>(() => {
     if (filters.categories.length === 0) return {};
+    if (!apiScores || Object.keys(apiScores).length === 0) return {};
 
-    if (apiScores && Object.keys(apiScores).length > 0) {
-      const out: ScoresMap = {};
-      for (const [iso, val] of Object.entries(apiScores)) {
-        out[iso] = {
-          score: val.score,
-          articleCount: val.articleCount,
-          topCategory: normaliseTopCategory(val.topCategory),
-        };
-      }
-      return out;
-    }
-
-    // Mock fallback — data is illustrative, not live
     const out: ScoresMap = {};
-    for (const s of mockScores) {
-      out[s.code] = {
-        score: applyFilterVariance(s.score, filters.timeWindow, filters.categories.length),
-        articleCount: s.articleCount,
-        topCategory: s.topCategory,
+    for (const [iso, val] of Object.entries(apiScores)) {
+      out[iso] = {
+        score: val.score,
+        articleCount: val.articleCount,
+        topCategory: normaliseTopCategory(val.topCategory),
       };
     }
     return out;
@@ -175,5 +150,6 @@ export function useScores(): ScoresResult {
 
   const isAutoRefreshing = filters.categories.length > 0;
 
-  return { scores, isLoading, isMock: usingMock, lastUpdated, nextRefreshIn, isAutoRefreshing };
+  // isMock retained in the result shape for API compatibility; always false now.
+  return { scores, isLoading, isMock: false, lastUpdated, nextRefreshIn, isAutoRefreshing };
 }

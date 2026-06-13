@@ -7,6 +7,7 @@ import BottomTabBar from "@/components/ui/bottom-tab-bar";
 import MapView from "@/components/map/map-view";
 import FilterBar from "@/components/filters/filter-bar";
 import HeatLegend, { HeatLegendCompact } from "@/components/ui/heat-legend";
+import LiveDateTime from "@/components/ui/live-datetime";
 import StoryPanel from "@/components/panel/story-panel";
 import { useMapStore } from "@/lib/stores/map-store";
 import { useThemeStore } from "@/lib/stores/theme-store";
@@ -22,7 +23,7 @@ export default function Home() {
     isPanelOpen, clearSelection,
   } = useMapStore();
 
-  const { scores, isLoading, isMock, lastUpdated, nextRefreshIn, isAutoRefreshing } = useScores();
+  const { scores, isLoading, lastUpdated, nextRefreshIn, isAutoRefreshing } = useScores();
   const { theme } = useThemeStore();
 
   // On mobile (panel sidebar is hidden by CSS), navigate to the full country page
@@ -72,14 +73,14 @@ export default function Home() {
                 pointerEvents: "none", maxWidth: 460,
               }}
             >
-              {/* Coral eyebrow */}
+              {/* Live date + time eyebrow */}
               <div style={{
                 fontFamily: DL.MONO, fontSize: 10, letterSpacing: 0.18,
                 textTransform: "uppercase", color: DL.CORAL,
                 display: "flex", alignItems: "center", gap: 8, marginBottom: 8,
               }}>
                 <span style={{ width: 6, height: 6, borderRadius: 999, background: DL.CORAL, flexShrink: 0 }} />
-                Today · global news intensity
+                <LiveDateTime variant="full" />
               </div>
 
               {/* Serif headline */}
@@ -115,7 +116,7 @@ export default function Home() {
                   display: "flex", alignItems: "center", gap: 6, marginBottom: 5,
                 }}>
                   <span style={{ width: 5, height: 5, borderRadius: 999, background: DL.CORAL, flexShrink: 0 }} />
-                  Today · global news intensity
+                  <LiveDateTime variant="compact" />
                 </div>
                 <div style={{
                   fontFamily: DL.DISPLAY, fontSize: 21, fontWeight: 400,
@@ -154,7 +155,6 @@ export default function Home() {
               <div style={{ pointerEvents: "all" }}>
                 <FilterBar
                   isLoading={isLoading}
-                  isMock={isMock}
                   lastUpdated={lastUpdated}
                   nextRefreshIn={nextRefreshIn}
                   isAutoRefreshing={isAutoRefreshing}

@@ -16,7 +16,6 @@ const TIME_WINDOWS: TimeWindow[] = ["1h", "6h", "24h", "7d", "30d"];
 
 interface FilterBarProps {
   isLoading?: boolean;
-  isMock?: boolean;
   lastUpdated?: Date | null;
   nextRefreshIn?: number;
   isAutoRefreshing?: boolean;
@@ -25,6 +24,8 @@ interface FilterBarProps {
 function TopicsPopover({ onClose }: { onClose: () => void }) {
   const { filters, toggleCategory, resetCategories, setCategories } = useMapStore();
   const filtered = filters.categories.length < ALL_CATEGORIES.length;
+  const allSelected = filters.categories.length === ALL_CATEGORIES.length;
+  const noneSelected = filters.categories.length === 0;
   const ref = useRef<HTMLDivElement>(null);
 
   // Close on outside click or Escape
@@ -64,7 +65,7 @@ function TopicsPopover({ onClose }: { onClose: () => void }) {
         fontFamily: DL.SANS,
       }}
     >
-      {/* Header row */}
+      {/* Header row: label + Select all / Clear all controls */}
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 10, padding: "0 4px" }}>
         <span style={{
           fontFamily: DL.MONO, fontSize: 10, letterSpacing: 0.14,
@@ -72,18 +73,35 @@ function TopicsPopover({ onClose }: { onClose: () => void }) {
         }}>
           Filter by topic
         </span>
-        {filtered && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <button
             onClick={resetCategories}
+            disabled={allSelected}
             style={{
-              background: "none", border: "none", cursor: "pointer",
-              fontSize: 11, fontWeight: 600, color: DL.CORAL, fontFamily: DL.SANS,
-              padding: 0,
+              background: "none", border: "none",
+              cursor: allSelected ? "default" : "pointer",
+              fontSize: 11, fontWeight: 600,
+              color: allSelected ? DL.DIM_2 : DL.CORAL,
+              fontFamily: DL.SANS, padding: 0,
             }}
           >
-            Reset
+            Select all
           </button>
-        )}
+          <span style={{ width: 1, height: 10, background: DL.RULE }} />
+          <button
+            onClick={() => setCategories([])}
+            disabled={noneSelected}
+            style={{
+              background: "none", border: "none",
+              cursor: noneSelected ? "default" : "pointer",
+              fontSize: 11, fontWeight: 600,
+              color: noneSelected ? DL.DIM_2 : DL.DIM,
+              fontFamily: DL.SANS, padding: 0,
+            }}
+          >
+            Clear all
+          </button>
+        </div>
       </div>
 
       {/* Topic grid — full names, two columns */}
@@ -124,11 +142,11 @@ function TopicsPopover({ onClose }: { onClose: () => void }) {
       </div>
 
       <div style={{ marginTop: 10, padding: "0 4px", fontSize: 10.5, color: DL.DIM_2, lineHeight: 1.4 }}>
-        {filters.categories.length === 0
-          ? "Nothing selected — the map is empty. Hit Reset to restore all topics."
+        {noneSelected
+          ? "Nothing selected — the map is empty. Use “Select all” or tap a topic."
           : filtered
             ? `Showing ${filters.categories.length} of ${ALL_CATEGORIES.length} topics.`
-            : "Showing all topics. Pick one to narrow the map."}
+            : "Showing all topics. Tap one to focus the map on it."}
       </div>
     </div>
   );
@@ -136,7 +154,6 @@ function TopicsPopover({ onClose }: { onClose: () => void }) {
 
 export default function FilterBar({
   isLoading = false,
-  isMock = false,
   lastUpdated = null,
   nextRefreshIn = 90,
   isAutoRefreshing = false,
@@ -247,13 +264,6 @@ export default function FilterBar({
               <path d="M12 2a10 10 0 0 1 10 10" />
             </svg>
             Updating…
-          </span>
-        ) : isMock ? (
-          <span style={{
-            padding: "2px 7px", borderRadius: 999, fontSize: 9.5, fontWeight: 600,
-            background: DL.CORAL_50, color: DL.CORAL, border: `1px solid ${DL.CORAL_BD}`,
-          }}>
-            Demo data
           </span>
         ) : isAutoRefreshing ? (
           <span style={{ display: "flex", alignItems: "center", gap: 5 }}>

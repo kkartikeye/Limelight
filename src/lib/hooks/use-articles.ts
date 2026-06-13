@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import useSWR from "swr";
-import { getMockStories } from "@/lib/mock/mock-articles";
 import type { Article } from "@/lib/types/article";
 import type { TimeWindow, Category } from "@/lib/stores/map-store";
 import { ALL_CATEGORIES } from "@/lib/stores/map-store";
@@ -65,9 +64,9 @@ export function useArticles(
     if (data?.articles && data.articles.length > 0) {
       return { articles: data.articles.map(mapApiArticle), isLive: true };
     }
-    // Empty response or no fetch yet → fall back to mock data
-    return { articles: getMockStories(countryCode), isLive: false };
-  }, [data, countryCode]);
+    // No real coverage for this country/window → show an honest empty state.
+    return { articles: [] as Article[], isLive: false };
+  }, [data]);
 
   // Show loading skeleton only on the very first fetch for this key
   const loading = isLoading && !data;
