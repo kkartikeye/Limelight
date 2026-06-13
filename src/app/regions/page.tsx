@@ -2,12 +2,20 @@
 
 import Link from "next/link";
 import { useMemo } from "react";
+import useSWR from "swr";
 import Header from "@/components/ui/header";
 import BottomTabBar from "@/components/ui/bottom-tab-bar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useScores } from "@/lib/hooks/use-scores";
 import { countryName } from "@/lib/utils/countries";
 import { DL } from "@/lib/design-tokens";
+
+// Regions is a static ranking view, so it just needs one cached heatmap read —
+// not the home page's full useScores machinery (90s polling + 1s countdown
+// ticker, which would re-render all five cards every second here for nothing).
+interface HeatmapResponse {
+  scores: Record<string, { score: number; articleCount: number }>;
+}
+const fetcher = (url: string) => fetch(url).then((r) => r.json() as Promise<HeatmapResponse>);
 
 // ─── World region definitions ─────────────────────────────────────────────────
 // Each entry maps a friendly region name + mono code badge to ISO 3166-1 alpha-3 codes.
@@ -243,7 +251,12 @@ function RegionCard({ name, code, desc, isos, scores, isLoading }: RegionCardPro
 }
 
 export default function RegionsPage() {
-  const { scores, isLoading } = useScores();
+  const { data, isLoading } = useSWR<HeatmapResponse>(
+    "/api/heatmap?window=24h",
+    fetcher,
+    { revalidateOnFocus: false, dedupingInterval: 60_000 }
+  );
+  const scores = data?.scores ?? null;
 
   return (
     <div
