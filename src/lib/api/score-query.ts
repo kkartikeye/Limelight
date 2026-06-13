@@ -48,15 +48,20 @@ export async function aggregateScores(
     cats: Record<string, number>;
   }> = {};
 
+  // Rows arrive newest-first (ordered by time_bucket desc).
   for (const row of data) {
     const cc = row.country_code as string;
     const bucket = row.time_bucket as string;
     if (!latestBucket || bucket > latestBucket) latestBucket = bucket;
 
-    if (!agg[cc]) agg[cc] = { scoreSum: 0, bucketCount: 0, articleCount: 0, cats: {} };
+    const firstForCc = !agg[cc];
+    if (firstForCc) agg[cc] = { scoreSum: 0, bucketCount: 0, articleCount: 0, cats: {} };
     agg[cc].scoreSum += row.score as number;
     agg[cc].bucketCount++;
-    agg[cc].articleCount += row.article_count as number;
+    // Each hourly bucket already holds a trailing-24h article count, so the
+    // buckets overlap heavily — summing them massively over-counts. Take the
+    // most-recent bucket's count (the first row seen for this country).
+    if (firstForCc) agg[cc].articleCount = row.article_count as number;
     const cat = row.top_category as string | null;
     if (cat) agg[cc].cats[cat] = (agg[cc].cats[cat] ?? 0) + 1;
   }
