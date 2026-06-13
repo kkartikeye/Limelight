@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { createHash } from "crypto";
 import { fetchGuardian, type NormalisedArticle } from "@/lib/ingest/guardian";
+import { fetchNewsData } from "@/lib/ingest/newsdata";
+import { fetchGNews } from "@/lib/ingest/gnews";
 import { dedupeByTitle } from "@/lib/ingest/similarity";
 import { credibilityFor, registryEntries } from "@/lib/ingest/credibility";
 import { dispatchIntensityAlerts } from "@/lib/push/alerts";
@@ -348,9 +350,17 @@ function extractCountry(title: string, domain?: string): GeoResult | null {
 
 // Extract ALL country / city mentions from a title (for secondary locations / cross-border arcs).
 // Returns an ordered list: first entry is the primary (most specific), rest are secondary.
-function extractAllLocations(title: string, domain?: string): GeoResult[] {
+// `countryHint` (ISO-3, supplied by sources that self-tag like NewsData.io) is
+// trusted as the primary location, bypassing the title gazetteer for breadth.
+function extractAllLocations(title: string, domain?: string, countryHint?: string): GeoResult[] {
   const results: GeoResult[] = [];
   const seenIsos = new Set<string>();
+
+  // Source-tagged country wins as the primary location
+  if (countryHint) {
+    results.push({ iso3: countryHint, confidence: 0.95 });
+    seenIsos.add(countryHint);
+  }
 
   // City matches (high confidence, includes coordinates)
   for (const [pattern, city] of CITY_COORDS) {
@@ -528,7 +538,7 @@ async function ingestArticles(
     if (!orig) continue;
 
     // Extract primary + all secondary locations for cross-border arc support
-    const allGeos = extractAllLocations(orig.title, orig.domain);
+    const allGeos = extractAllLocations(orig.title, orig.domain, orig.countryHint);
     allGeos.forEach((geo, idx) => {
       locationRows.push({
         article_id: inserted.id as string,
@@ -646,16 +656,26 @@ async function runIngestion(gdeltQuery = "sourcelang:english", timespan = "2h"):
     inserted: 0, skipped: 0, reprints: 0, scored: 0, errors: [] as string[],
   };
 
-  // Fetch all sources in parallel — Guardian articles first so their richer
-  // records (trailText snippets) win when fuzzy dedup drops GDELT reprints.
-  const [guardian, gdelt] = await Promise.all([
+  // Fetch all sources in parallel. Order matters for fuzzy dedup: the first
+  // occurrence of a title wins, so put the richest records first —
+  //   1. NewsData.io — self-tags country (best geo accuracy/breadth) + snippet
+  //   2. Guardian    — trailText standfirst
+  //   3. GNews       — snippet, source diversity
+  //   4. GDELT       — titles only, but widest volume
+  // NewsData/GNews no-op (return []) when their API key isn't set.
+  const [newsdata, guardian, gnews, gdelt] = await Promise.all([
+    fetchNewsData(GDELT_TIMEOUT_MS),
     fetchGuardian(GDELT_TIMEOUT_MS),
+    fetchGNews(GDELT_TIMEOUT_MS),
     // 120 broadens country coverage beyond the Guardian's UK/US skew while
     // still returning inside the ~8.5 s GDELT budget (250 reliably times out).
     fetchGdelt(gdeltQuery, timespan, 120),
   ]);
-  results.fetchedBySource = { guardian: guardian.length, gdelt: gdelt.length };
-  const articles: NormalisedArticle[] = [...guardian, ...gdelt];
+  results.fetchedBySource = {
+    newsdata: newsdata.length, guardian: guardian.length,
+    gnews: gnews.length, gdelt: gdelt.length,
+  };
+  const articles: NormalisedArticle[] = [...newsdata, ...guardian, ...gnews, ...gdelt];
   results.fetched = articles.length;
 
   if (articles.length > 0) {

@@ -11,6 +11,12 @@ export interface NormalisedArticle {
   domain: string;
   /** Optional 1–2 sentence standfirst (Guardian only) */
   snippet?: string;
+  /**
+   * ISO-3 country the source itself tagged the story to (NewsData.io etc.).
+   * When present it's trusted as the primary location, bypassing the
+   * title-based gazetteer — the key to broad, accurate country coverage.
+   */
+  countryHint?: string;
 }
 
 interface GuardianItem {
