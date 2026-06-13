@@ -71,11 +71,16 @@ export async function aggregateScores(
     1
   );
 
+  // Perceptual (square-root) scaling. English-language sources genuinely
+  // over-cover the US/UK, so a linear scale leaves every other country looking
+  // dead next to them. sqrt keeps the loudest country at 100 and preserves
+  // ranking, but lifts mid-tier countries into visible warmth so the map shows
+  // global activity. (Pure log over-saturated everything to orange.)
   const scores: Record<string, ScoreEntry> = {};
   for (const [cc, a] of Object.entries(agg)) {
     const avg = a.scoreSum / a.bucketCount;
     scores[cc] = {
-      score: Math.round((avg / maxAvg) * 100),
+      score: Math.round(Math.sqrt(avg / maxAvg) * 100),
       articleCount: a.articleCount,
       topCategory: Object.entries(a.cats).sort((x, y) => y[1] - x[1])[0]?.[0] ?? null,
     };
